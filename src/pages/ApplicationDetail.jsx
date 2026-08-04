@@ -175,57 +175,7 @@ export default function ApplicationDetail() {
             <div className="form-group"><label>ID Number</label><p>{app.idNumber || '—'}</p></div>
             <div className="form-group"><label>Cell Number</label><p>{app.cellNumber || '—'} {app.cellVerified ? '✓' : ''}</p></div>
           </div>
-          <div className="form-group">
-            <label>Residential Address</label>
-            <p style={{ marginBottom: '0.35rem' }}>{app.residentialAddress || '—'}</p>
-            {app.addressVerified && app.addressFormatted && (
-              <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: '0.5rem' }}>
-                <span className="badge badge-uploaded" style={{ marginRight: '0.4rem' }}>Google Verified</span>
-                {app.addressFormatted}
-              </p>
-            )}
-            {!app.addressVerified && app.residentialAddress && (
-              <p style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                <span className="badge badge-pending" style={{ marginRight: '0.4rem' }}>Not verified</span>
-                Applicant has not verified this address on Google Maps
-              </p>
-            )}
-            {app.addressLatitude != null && app.addressLongitude != null && (
-              <div style={{ marginTop: '0.75rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                  <a
-                    className="btn btn-primary btn-sm"
-                    href={`https://www.google.com/maps/search/?api=1&query=${app.addressLatitude},${app.addressLongitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open in Google Maps
-                  </a>
-                  <a
-                    className="btn btn-outline btn-sm"
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${app.addressLatitude},${app.addressLongitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Get Directions
-                  </a>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)', alignSelf: 'center' }}>
-                    {Number(app.addressLatitude).toFixed(6)}, {Number(app.addressLongitude).toFixed(6)}
-                  </span>
-                </div>
-                <iframe
-                  title="Applicant location"
-                  width="100%"
-                  height="280"
-                  style={{ border: 0, borderRadius: '8px' }}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  src={`https://www.google.com/maps?q=${app.addressLatitude},${app.addressLongitude}&z=16&output=embed`}
-                />
-              </div>
-            )}
-          </div>
-          <div className="form-group"><label>Postal Address</label><p>{app.postalAddress || '—'}</p></div>
+          <div className="form-group"><label>Residential Address</label><p>{app.residentialAddress || '—'}</p></div>
           <div className="form-group"><label>Employer</label><p>{app.employerName || '—'} · {app.employerAddress || ''}</p></div>
         </div>
 
