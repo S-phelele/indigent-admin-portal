@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import AdminLayout from '../components/AdminLayout';
 
 const TABS = ['All Applications', 'Pending', 'Approved', 'Declined'];
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('All Applications');
   const [apps, setApps] = useState([]);
@@ -59,18 +58,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="app-page">
-      <header className="app-header">
-        <h1>Indigent Register</h1>
-        <div className="header-actions">
-          <Link to="/" className="header-link">🏠 Home</Link>
-          <span className="header-link">👤 {user?.firstName || 'Admin'}</span>
-          <button className="header-link" onClick={() => { logout(); navigate('/login'); }}>
-            Logout
-          </button>
-        </div>
-      </header>
-
+    <AdminLayout title="Applications">
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem' }}>
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--gray-200)' }}>
@@ -224,6 +212,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
