@@ -2,16 +2,23 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import { exportToExcel, exportToPdf } from '../utils/export';
+import LoadError, { loadErrorMessage } from '../components/LoadError';
+import Icon from '../components/ui/Icon';
+import { useToast } from '../components/ui/Toast';
+import { Link } from 'react-router-dom';
 
 export default function Applicants() {
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ page: 1, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const load = useCallback(async (page = 1) => {
     setLoading(true);
+    setError('');
     try {
       const [s, list] = await Promise.all([
         api.get('/admin/stats/applicants'),
@@ -21,7 +28,7 @@ export default function Applicants() {
       setRows(list.data.data || []);
       setPagination(list.data.pagination || { page: 1, total: 0, totalPages: 1 });
     } catch (err) {
-      console.error(err);
+      setError(loadErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -35,15 +42,21 @@ export default function Applicants() {
     try {
       const res = await api.get('/admin/export/applicants');
       const data = res.data.data || [];
+      if (!data.length) {
+        toast.warning('Nothing to export', 'There are no applicants matching the register.');
+        return;
+      }
       if (type === 'excel') exportToExcel(data, 'applicants.csv');
       else exportToPdf(data, 'Registered Applicants', 'applicants');
+      toast.success('Export ready', `${data.length} applicant record(s). This export is recorded in the audit log.`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Export failed');
+      toast.error('Export failed', err.response?.data?.message || err.message);
     }
   };
 
   return (
     <AdminLayout title="Applicants">
+      <LoadError message={error} />
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-label">Total Registered</div>
@@ -74,10 +87,10 @@ export default function Applicants() {
         />
         <div className="toolbar-actions">
           <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('excel')}>
-            Export Excel
+            <Icon name="download" size={14} /> Export CSV
           </button>
           <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('pdf')}>
-            Export PDF
+            <Icon name="file" size={14} /> Export PDF
           </button>
         </div>
       </div>
@@ -95,20 +108,26 @@ export default function Applicants() {
                 <th>ID Number</th>
                 <th>Applications</th>
                 <th>Registered</th>
+                <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>No applicants found</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>No applicants found</td></tr>
               ) : (
                 rows.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.fullName}</td>
+                    <td>
+                      <Link to={`/applicants/${r.id}`} style={{ fontWeight: 600 }}>{r.fullName}</Link>
+                    </td>
                     <td>{r.email}</td>
                     <td>{r.cellNumber}</td>
                     <td>{r.idNumber}</td>
                     <td>{r.applicationsCount}</td>
                     <td>{r.registeredDate}</td>
+                    <td className="text-right">
+                      <Link to={`/applicants/${r.id}`} className="btn btn-outline btn-sm">View</Link>
+                    </td>
                   </tr>
                 ))
               )}

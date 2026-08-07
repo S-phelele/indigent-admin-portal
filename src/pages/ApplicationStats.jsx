@@ -2,15 +2,21 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import AdminLayout from '../components/AdminLayout';
 import { exportToExcel, exportToPdf } from '../utils/export';
+import LoadError, { loadErrorMessage } from '../components/LoadError';
+import Icon from '../components/ui/Icon';
+import { useToast } from '../components/ui/Toast';
+import { label, EMPLOYMENT } from '../utils/labels';
 
 export default function ApplicationStats() {
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api.get('/admin/stats/applications')
       .then((res) => setStats(res.data.data))
-      .catch(console.error)
+      .catch((err) => setError(loadErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -18,10 +24,15 @@ export default function ApplicationStats() {
     try {
       const res = await api.get('/admin/export/applications');
       const data = res.data.data || [];
+      if (!data.length) {
+        toast.warning('Nothing to export', 'There are no applications to include.');
+        return;
+      }
       if (type === 'excel') exportToExcel(data, 'applications.csv');
       else exportToPdf(data, 'Applications Report', 'applications');
+      toast.success('Export ready', `${data.length} application record(s). This export is recorded in the audit log.`);
     } catch (err) {
-      alert(err.response?.data?.message || 'Export failed');
+      toast.error('Export failed', err.response?.data?.message || err.message);
     }
   };
 
@@ -37,11 +48,16 @@ export default function ApplicationStats() {
 
   return (
     <AdminLayout title="Application Stats">
+      <LoadError message={error} />
       <div className="toolbar" style={{ marginBottom: '1.25rem' }}>
         <div />
         <div className="toolbar-actions">
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('excel')}>Export Excel</button>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('pdf')}>Export PDF</button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('excel')}>
+            <Icon name="download" size={14} /> Export CSV
+          </button>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('pdf')}>
+            <Icon name="file" size={14} /> Export PDF
+          </button>
         </div>
       </div>
 
@@ -62,7 +78,7 @@ export default function ApplicationStats() {
           <div className="bar-list">
             {stats.byEmployment.map((e) => (
               <div key={e.status} className="bar-row">
-                <span className="bar-label">{e.status}</span>
+                <span className="bar-label">{label(EMPLOYMENT, e.status)}</span>
                 <div className="bar-track">
                   <div className="bar-fill" style={{ width: `${(e.count / maxEmp) * 100}%` }} />
                 </div>

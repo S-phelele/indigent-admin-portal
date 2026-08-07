@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import AdminLayout from '../components/AdminLayout';
+import LoadError, { loadErrorMessage } from '../components/LoadError';
+import { label, AUDIT_ACTION, ROLE } from '../utils/labels';
 
 const ACTIONS = [
   'ALL',
@@ -9,6 +11,13 @@ const ACTIONS = [
   'VIEW_APPLICATION',
   'APPROVE_APPLICATION',
   'DECLINE_APPLICATION',
+  'RECOMMEND_APPLICATION',
+  'SITE_VISIT',
+  'VERIFICATION_CHECK',
+  'FIELD_REGISTER_RESIDENT',
+  'FIELD_SUBMIT_APPLICATION',
+  'CREATE_COUNCILLOR',
+  'RESET_STAFF_PASSWORD',
   'EXPORT_APPLICANTS',
   'EXPORT_APPLICATIONS',
 ];
@@ -19,9 +28,11 @@ export default function AuditLogs() {
   const [action, setAction] = useState('ALL');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const load = useCallback(async (page = 1) => {
     setLoading(true);
+    setError('');
     try {
       const res = await api.get('/admin/audit-logs', {
         params: {
@@ -34,7 +45,7 @@ export default function AuditLogs() {
       setLogs(res.data.data || []);
       setPagination(res.data.pagination || { page: 1, total: 0, totalPages: 1 });
     } catch (err) {
-      console.error(err);
+      setError(loadErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -46,6 +57,7 @@ export default function AuditLogs() {
 
   return (
     <AdminLayout title="Audit Logs">
+      <LoadError message={error} />
       <div className="toolbar">
         <input
           type="search"
@@ -57,7 +69,7 @@ export default function AuditLogs() {
         />
         <select value={action} onChange={(e) => setAction(e.target.value)} className="toolbar-select">
           {ACTIONS.map((a) => (
-            <option key={a} value={a}>{a}</option>
+            <option key={a} value={a}>{a === 'ALL' ? 'All actions' : label(AUDIT_ACTION, a)}</option>
           ))}
         </select>
       </div>
@@ -92,8 +104,8 @@ export default function AuditLogs() {
                       {new Date(log.createdAt).toLocaleString()}
                     </td>
                     <td>{log.userEmail || '—'}</td>
-                    <td>{log.userRole || '—'}</td>
-                    <td><span className="badge badge-draft">{log.action}</span></td>
+                    <td>{label(ROLE, log.userRole)}</td>
+                    <td><span className="badge badge-draft">{label(AUDIT_ACTION, log.action)}</span></td>
                     <td style={{ fontSize: '0.85rem' }}>
                       {log.entityType || '—'}
                       {log.entityId ? ` · ${String(log.entityId).slice(0, 8)}…` : ''}
