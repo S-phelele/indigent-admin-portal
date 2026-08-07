@@ -1737,7 +1737,13 @@ tr.row-muted { opacity: .6; }
  * The audit trail was worst affected — every "details" cell was truncated, so
  * the one column somebody actually reads was the one they could not read.
  */
-td, th { overflow-wrap: anywhere; }
+/**
+ * `anywhere` also shrinks a column to its narrowest possible width, which broke
+ * "Administrator" into "Administrat/or". `break-word` wraps long content but
+ * still sizes the column to its longest word first, so words only break when
+ * they genuinely cannot fit.
+ */
+td, th { overflow-wrap: break-word; }
 td { vertical-align: top; }
 /* Reference numbers, dates and amounts must never be broken across lines. */
 td.nowrap, th.nowrap, td .num, .nowrap { overflow-wrap: normal; white-space: nowrap; }
@@ -1967,3 +1973,71 @@ td.nowrap, th.nowrap, td .num, .nowrap { overflow-wrap: normal; white-space: now
  */
 select, .toolbar-select { min-height: 38px; }
 @media (max-width: 640px) { select, .toolbar-select { min-height: 44px; } }
+
+/* ==========================================================================
+   24. Scroll regions
+   The sidebar navigation scrolls once a role has enough destinations to
+   overflow. Chrome draws its default light scrollbar over the dark navy, which
+   reads as a seam splitting the sidebar from the content — so it is hidden
+   until somebody is actually in that region, then shown thin and dark.
+   Scrolling itself is never disabled: wheel, trackpad, touch and keyboard all
+   continue to work whether the bar is drawn or not.
+   ========================================================================== */
+
+.sidebar-nav {
+  /* Reaching the end of the list must not start scrolling the page behind it. */
+  overscroll-behavior: contain;
+  scrollbar-width: none;              /* Firefox */
+  -ms-overflow-style: none;           /* legacy Edge */
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color .15s ease;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+
+/* Reveal on hover, and whenever focus is inside — a keyboard user tabbing
+   through the links needs the same feedback a mouse user gets. */
+.sidebar-nav:hover,
+.sidebar-nav:focus-within {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .22) transparent;
+}
+.sidebar-nav:hover::-webkit-scrollbar-thumb,
+.sidebar-nav:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, .22);
+}
+.sidebar-nav::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .35); }
+
+/**
+ * The same treatment for in-app scroll regions on light surfaces.
+ *
+ * Wide tables and the topbar action row both scroll sideways on narrow screens;
+ * a default chunky bar under a table looks like a defect rather than an
+ * affordance.
+ */
+.table-scroll,
+.topbar-actions,
+.admin-content {
+  scrollbar-width: thin;
+  scrollbar-color: var(--slate-300) transparent;
+}
+.table-scroll::-webkit-scrollbar,
+.topbar-actions::-webkit-scrollbar { height: 8px; width: 8px; }
+.table-scroll::-webkit-scrollbar-track,
+.topbar-actions::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb,
+.topbar-actions::-webkit-scrollbar-thumb {
+  background: var(--slate-300);
+  border-radius: 999px;
+}
+.table-scroll::-webkit-scrollbar-thumb:hover,
+.topbar-actions::-webkit-scrollbar-thumb:hover { background: var(--slate-400); }
+
+/* A touch device has no hover, so a hidden bar would never appear. Leave the
+   platform's own overlay indicator alone there. */
+@media (hover: none) {
+  .sidebar-nav { scrollbar-width: auto; }
+  .sidebar-nav::-webkit-scrollbar { width: 0; }
+}
+

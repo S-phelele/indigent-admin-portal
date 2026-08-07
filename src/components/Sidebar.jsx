@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from './ui/Icon';
 
@@ -92,8 +93,27 @@ const initials = (user) => {
 
 export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts = {} }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const navRef = useRef(null);
 
   const sections = SECTIONS.filter((s) => s.roles.includes(user?.role));
+
+  /**
+   * Keep the current page visible in the navigation.
+   *
+   * An administrator has enough destinations that the list scrolls, so opening
+   * the Audit Log — the last item — could leave the sidebar showing Overview at
+   * the top with nothing highlighted. `block: 'nearest'` scrolls only when the
+   * item is actually out of view, so a link already on screen does not cause the
+   * list to jump under the pointer.
+   */
+  useEffect(() => {
+    const active = navRef.current?.querySelector('.sidebar-link.active');
+    if (!active) return;
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    active.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+  }, [pathname, collapsed]);
 
   return (
     <aside className={`admin-sidebar${open ? ' open' : ''}`} aria-label="Main navigation">
@@ -107,7 +127,7 @@ export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts
         </span>
       </div>
 
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" ref={navRef}>
         {sections.map((section) => (
           <div key={section.label}>
             <div className="sidebar-section">{section.label}</div>
