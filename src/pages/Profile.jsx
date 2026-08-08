@@ -54,14 +54,26 @@ export default function Profile() {
 
     setBusy(true);
     try {
-      await api.post('/auth/change-password', {
+      const res = await api.post('/auth/change-password', {
         currentPassword: passwords.currentPassword,
         newPassword: passwords.newPassword,
       });
+
+      /**
+       * Swap in the replacement token before anything else runs.
+       *
+       * Changing a password revokes every token issued before it, including the
+       * one this request was made with. Without this the next request would 401
+       * and sign the person out of the change they just completed.
+       */
+      if (res.data?.data?.token) {
+        localStorage.setItem('admin_token', res.data.data.token);
+      }
+
       // Clear the lock locally too, or the session keeps redirecting back here.
       updateUser({ mustChangePassword: false });
       setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      toast.success('Your password was changed.');
+      toast.success('Your password was changed.', 'Any other devices signed in as you have been signed out.');
     } catch (err) {
       setPasswordError(friendlyError(err, 'Could not change your password.'));
     } finally {

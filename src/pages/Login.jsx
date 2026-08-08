@@ -10,12 +10,62 @@ const POINTS = [
   'Every action recorded in an audit trail',
 ];
 
+/**
+ * Why the previous session ended.
+ *
+ * Written by the API client or the idle timer just before it redirected here.
+ * Without this the person lands on a sign-in box with no explanation, which reads
+ * as the site having broken — and the natural response is to try the same thing
+ * again and get the same result.
+ */
+const SIGNOUT_REASONS = {
+  idle: {
+    tone: 'alert-info',
+    icon: 'clock',
+    text: 'You were signed out because there was no activity for a while. This protects household '
+      + 'information if a screen is left unattended. Sign in to carry on.',
+  },
+  expired: {
+    tone: 'alert-info',
+    icon: 'clock',
+    text: 'Your session timed out. Sign in again to carry on — nothing has been lost.',
+  },
+  revoked: {
+    tone: 'alert-info',
+    icon: 'key',
+    text: 'Your password was changed, so all other sessions were signed out. Sign in with the new password.',
+  },
+  locked: {
+    tone: 'alert-error',
+    icon: 'alert-triangle',
+    text: 'This account has been locked after repeated failed sign-in attempts. '
+      + 'Wait for the lock to clear, or ask the municipal administrator to release it.',
+  },
+  ended: {
+    tone: 'alert-info',
+    icon: 'info',
+    text: 'Your session has ended. Please sign in again.',
+  },
+};
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  /**
+   * Read once, on mount, and cleared immediately.
+   *
+   * Leaving it in place would show "you were signed out for inactivity" again
+   * every time somebody came back to this screen, long after it stopped being true.
+   */
+  const [signedOutBecause] = useState(() => {
+    const reason = sessionStorage.getItem('admin_signout_reason');
+    sessionStorage.removeItem('admin_signout_reason');
+    return reason ? SIGNOUT_REASONS[reason] || null : null;
+  });
   const { login } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -63,6 +113,15 @@ export default function Login() {
         <div className="login-card">
           <h1>Administrator sign in</h1>
           <p>Use the credentials issued by your municipality.</p>
+
+          {/* Hidden once they have tried again, so the older message does not sit
+              above a fresh error and confuse which one is current. */}
+          {signedOutBecause && !error ? (
+            <div className={`alert ${signedOutBecause.tone}`} role="status">
+              <Icon name={signedOutBecause.icon} size={16} />
+              <span>{signedOutBecause.text}</span>
+            </div>
+          ) : null}
 
           {error ? (
             <div className="alert alert-error" role="alert">

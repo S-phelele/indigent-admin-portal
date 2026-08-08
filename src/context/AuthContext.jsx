@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../services/api';
+import useIdleTimeout from '../hooks/useIdleTimeout';
+import IdleWarning from '../components/IdleWarning';
 
 const AuthContext = createContext(null);
 
@@ -28,8 +30,18 @@ export function AuthProvider({ children }) {
       api.get('/auth/me')
         .then((res) => {
           if (!STAFF_ROLES.includes(res.data.data.role)) throw new Error('Not staff');
-          setUser(res.data.data);
-          localStorage.setItem('admin_user', JSON.stringify(res.data.data));
+          /**
+           * Merged over what was cached rather than replacing it.
+           *
+           * /auth/me returns the account, not the session, so overwriting would
+           * drop the idle-timeout policy on every page reload and silently fall
+           * back to the defaults below.
+           */
+          let cached = {};
+          try { cached = JSON.parse(localStorage.getItem('admin_user')) || {}; } catch { /* ignore */ }
+          const merged = { session: cached.session, previousSignIn: cached.previousSignIn, ...res.data.data };
+          setUser(merged);
+          localStorage.setItem('admin_user', JSON.stringify(merged));
         })
         .catch(() => {
           localStorage.removeItem('admin_token');
@@ -42,21 +54,56 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    const { user, token } = res.data.data;
+    const { user, token, session, previousSignIn } = res.data.data;
     if (!STAFF_ROLES.includes(user.role)) {
       throw new Error('This portal is for municipal staff. Residents should use the applicant portal.');
     }
+    // The session policy and the previous sign-in ride along with the user, so the
+    // idle timer and the "last signed in" line survive a page reload.
+    const withSession = { ...user, session, previousSignIn };
     localStorage.setItem('admin_token', token);
-    localStorage.setItem('admin_user', JSON.stringify(user));
-    setUser(user);
-    return user;
+    localStorage.setItem('admin_user', JSON.stringify(withSession));
+    sessionStorage.removeItem('admin_signout_reason');
+    setUser(withSession);
+    return withSession;
   };
 
-  const logout = () => {
+  /**
+   * End the session.
+   *
+   * `reason` is stashed for the sign-in screen to read, because a session that
+   * ends without explanation looks like the site broke. Somebody signed out for
+   * being idle should be told that is what happened, and that nothing is wrong.
+   */
+  const logout = (reason = null) => {
     localStorage.removeItem('admin_token');
     localStorage.removeItem('admin_user');
+    if (reason) sessionStorage.setItem('admin_signout_reason', reason);
+    else sessionStorage.removeItem('admin_signout_reason');
     setUser(null);
   };
+
+  /**
+   * Sign out for inactivity.
+   *
+   * Redirects rather than only clearing state: the person is not at the screen, so
+   * leaving them on a page that will now fail every request would mean they come
+   * back to a wall of errors instead of a sign-in box.
+   */
+  const idleSignOut = () => {
+    logout('idle');
+    if (!window.location.pathname.includes('/login')) window.location.href = '/login';
+  };
+
+  const session = useIdleTimeout({
+    enabled: Boolean(user),
+    // Read from the sign-in response, so the policy is set once on the server.
+    idleMinutes: user?.session?.idleMinutes ?? 20,
+    warningMinutes: user?.session?.idleWarningMinutes ?? 2,
+    onTimeout: idleSignOut,
+    // Shared so two tabs do not count each other as idle.
+    storageKey: 'admin_last_active',
+  });
 
   /**
    * Merge a partial update into the cached user.
@@ -84,6 +131,13 @@ export function AuthProvider({ children }) {
       value={{ user, loading, login, logout, updateUser, isAdmin, isCouncillor, canCapture, canVerify, canApprove }}
     >
       {children}
+      {session.warning ? (
+        <IdleWarning
+          secondsLeft={session.secondsLeft}
+          onStay={session.staySignedIn}
+          onSignOutNow={idleSignOut}
+        />
+      ) : null}
     </AuthContext.Provider>
   );
 }

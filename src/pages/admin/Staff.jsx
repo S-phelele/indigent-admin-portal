@@ -116,6 +116,23 @@ export default function Staff() {
     }
   };
 
+  /**
+   * Release a sign-in lock without changing the password.
+   *
+   * The proportionate response to somebody mistyping their own password three
+   * times. Issuing a new password and an SMS for that would be heavy-handed, and
+   * would leave them unable to work until the message arrived.
+   */
+  const unlock = async (councillor) => {
+    try {
+      const res = await api.post(`/admin/staff/${councillor.id}/unlock`);
+      toast.success(res.data.message);
+      load();
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not unlock that account.'));
+    }
+  };
+
   const remove = async (councillor) => {
     try {
       await api.delete(`/admin/staff/${councillor.id}`);
@@ -213,12 +230,30 @@ export default function Staff() {
                     {c.mustChangePassword
                       ? <span className="badge badge-draft" title="Has not yet replaced the password sent to them">Not signed in</span>
                       : null}
+                    {/* A locked officer cannot work, and a queue of households
+                        forms behind them, so this has to be visible at a glance
+                        rather than found by opening the record. */}
+                    {c.locked ? (
+                      <span
+                        className="badge badge-declined"
+                        title={`Locked after ${c.failedLoginAttempts} failed sign-in attempts. Clears in ${c.lockedForMinutes} minute(s).`}
+                      >
+                        Locked
+                      </span>
+                    ) : null}
                   </td>
                   <td className="text-right">
                     <div className="row-actions">
                       <button type="button" className="btn btn-sm" onClick={() => setEditing({ ...c })}>
                         <Icon name="edit" size={14} /> Edit
                       </button>
+                      {/* Offered only when it applies. A permanent "Unlock" button
+                          would invite clearing counters that are doing their job. */}
+                      {c.locked ? (
+                        <button type="button" className="btn btn-sm btn-primary" onClick={() => unlock(c)}>
+                          <Icon name="key" size={14} /> Unlock
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="btn btn-sm"

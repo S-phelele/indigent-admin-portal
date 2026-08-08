@@ -2415,3 +2415,63 @@ select, .toolbar-select { min-height: 38px; }
   .functioning-options { grid-template-columns: 1fr; }
   .functioning-option { justify-content: flex-start; text-align: left; min-height: 44px; }
 }
+
+/* --- Idle sign-out warning ------------------------------------------------- */
+/*
+ * Sits above everything, including an open modal, because the message applies to
+ * whatever is on screen. A very high z-index is deliberate: being covered by the
+ * dialog it is warning about would make the warning pointless.
+ */
+.idle-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.idle-dialog {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  border-radius: 12px;
+  padding: 1.75rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
+}
+
+.idle-dialog h2 { margin: 0.75rem 0 0.5rem; font-size: 1.15rem; }
+.idle-dialog p { margin: 0 0 0.75rem; font-size: 0.9rem; line-height: 1.5; color: var(--text-muted, #475569); }
+
+.idle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* The number is the point of the dialog, so it is the largest thing in it. */
+.idle-countdown { font-size: 0.95rem; color: var(--text, #0f172a) !important; }
+.idle-countdown strong { font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+
+.idle-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 420px) {
+  /* Stacked on a phone so neither button is too narrow to hit reliably. */
+  .idle-actions { flex-direction: column-reverse; }
+  .idle-actions .btn { width: 100%; }
+}
