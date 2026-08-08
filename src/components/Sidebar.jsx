@@ -86,6 +86,7 @@ const SECTIONS = [
       { to: '/staff', label: 'Staff', icon: 'userCheck' },
       { to: '/sms', label: 'SMS Outbox', icon: 'message' },
       { to: '/audit-logs', label: 'Audit Logs', icon: 'audit' },
+      { to: '/privacy', label: 'Privacy', icon: 'key' },
     ],
   },
   {
