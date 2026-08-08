@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import Icon from '../../components/ui/Icon';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import DerivedIdentity from '../../components/DerivedIdentity';
+import FunctioningQuestions from '../../components/FunctioningQuestions';
 import { useToast } from '../../components/ui/Toast';
 import api from '../../services/api';
 import { friendlyError } from '../../utils/apiError';
@@ -33,12 +35,18 @@ const empty = {
   ownsImmovableProperty: '', isFullTimeOccupant: '', incomeBelowThreshold: '',
   hasMunicipalArrears: '', hasArrearsArrangement: '',
   addressLatitude: '', addressLongitude: '', addressFormatted: '', addressSource: '', addressAccuracyM: '',
+  // The Washington Group Short Set, identical to the applicant's own form so a
+  // captured application carries the same data as one somebody filled in.
+  difficultySeeing: '', difficultyHearing: '', difficultyWalking: '',
+  difficultyRemembering: '', difficultySelfCare: '', difficultyCommunicating: '',
 };
 
 const STRINGS = [
   'surname', 'names', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
   'postalAddress', 'employmentStatus', 'employerName', 'workTelNumber',
   'waterMeterNumber', 'electricityMeterNumber',
+  'difficultySeeing', 'difficultyHearing', 'difficultyWalking',
+  'difficultyRemembering', 'difficultySelfCare', 'difficultyCommunicating',
 ];
 const INTS = ['peopleOnProperty', 'childrenUnder18', 'adults', 'pensionersOver60'];
 const MONEY = ['salary', 'oldAgePension', 'disabilityPension', 'businessIncome', 'rentingIncome'];
@@ -276,7 +284,12 @@ export default function CaptureApplication() {
         <div className="form-grid">
           <label className="form-group"><span>First names</span><input value={form.names} onChange={set('names')} /></label>
           <label className="form-group"><span>Surname</span><input value={form.surname} onChange={set('surname')} /></label>
-          <label className="form-group"><span>ID number</span><input value={form.idNumber} onChange={set('idNumber')} inputMode="numeric" maxLength={13} /></label>
+          <label className="form-group">
+            <span>ID number</span>
+            <input value={form.idNumber} onChange={set('idNumber')} inputMode="numeric" maxLength={13} />
+            {/* Read back so a mistyped digit is caught at the door, not later. */}
+            <DerivedIdentity idNumber={form.idNumber} />
+          </label>
           <label className="form-group"><span>Cell number</span><input value={form.cellNumber} onChange={set('cellNumber')} inputMode="tel" /></label>
           <label className="form-group">
             <span>Marital status</span>

@@ -2293,3 +2293,125 @@ select, .toolbar-select { min-height: 38px; }
   .print-head { break-after: avoid; }
   a[href]::after { content: ""; }
 }
+
+/* ==========================================================================
+   27. Functioning questions and derived identity
+   ========================================================================== */
+
+/**
+ * What we read back from the ID number.
+ *
+ * Shown so an applicant can check we read their ID correctly. A wrong date of
+ * birth here means a mistyped digit, and catching that at capture is far
+ * cheaper than catching it at verification.
+ */
+.derived-identity {
+  display: flex; gap: .65rem; align-items: flex-start;
+  margin-top: .6rem;
+  padding: .7rem .85rem;
+  border: 1px solid var(--success-line, #bbf7d0);
+  border-radius: var(--radius, 8px);
+  background: var(--success-soft, #f0fdf4);
+  font-size: .8125rem;
+}
+.derived-identity > .icon { flex: none; margin-top: .1rem; color: var(--success, #15803d); }
+.derived-identity strong { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--success, #15803d); }
+.derived-identity dl { display: flex; gap: 1.25rem; flex-wrap: wrap; margin: .35rem 0 0; }
+.derived-identity dl > div { margin: 0; }
+.derived-identity dt { font-size: .6875rem; color: var(--ink-mute, #64748b); }
+.derived-identity dd { margin: 0; font-size: .875rem; font-weight: 600; color: var(--ink, #0f172a); }
+.derived-identity p { margin: .4rem 0 0; font-size: .75rem; color: var(--ink-mute, #64748b); }
+
+.derived-identity.is-warn {
+  align-items: center;
+  border-color: var(--warning-line, #fde68a);
+  background: var(--warning-soft, #fffbeb);
+  color: var(--warning, #b45309);
+}
+.derived-identity.is-warn > .icon { color: var(--warning, #b45309); }
+
+/* --- The six domains ------------------------------------------------------ */
+.functioning { display: grid; gap: 1rem; }
+
+.functioning-item {
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  padding: .9rem 1rem;
+  margin: 0;
+  background: var(--surface, #fff);
+}
+.functioning-item legend {
+  padding: 0;
+  margin-bottom: .7rem;
+}
+.functioning-label {
+  display: block;
+  font-size: .6875rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+  color: var(--brand, #e31c23);
+}
+.functioning-question {
+  display: block;
+  margin-top: .2rem;
+  font-size: .9375rem;
+  line-height: 1.5;
+  color: var(--ink, #0f172a);
+}
+
+/**
+ * Four options, side by side on a desktop and stacked on a phone.
+ *
+ * Stacked rather than squeezed: "Cannot do it at all" does not fit a quarter of
+ * a 390px screen, and a truncated answer is one somebody picks by accident.
+ */
+.functioning-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+
+.functioning-option {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 46px;
+  padding: .5rem .6rem;
+  border: 1px solid var(--line-strong, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  background: var(--surface, #fff);
+  font-size: .8125rem; font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink-soft, #475569);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.functioning-option input { position: absolute; opacity: 0; pointer-events: none; }
+.functioning-option:hover { background: var(--slate-50, #f8fafc); }
+.functioning-option.selected {
+  border-color: var(--brand, #e31c23);
+  background: var(--brand-soft, #fef2f2);
+  color: var(--brand-strong, #a5161d);
+}
+/* The keyboard ring has to survive the hidden radio. */
+.functioning-option:focus-within {
+  outline: 2px solid var(--brand, #e31c23);
+  outline-offset: 2px;
+}
+
+.functioning-progress {
+  display: flex; align-items: center; gap: .5rem;
+  margin: 0;
+  padding: .7rem .85rem;
+  border-radius: var(--radius, 8px);
+  background: var(--slate-50, #f8fafc);
+  font-size: .8125rem;
+  color: var(--ink-soft, #475569);
+}
+.functioning-progress.complete {
+  background: var(--success-soft, #f0fdf4);
+  color: var(--success, #15803d);
+}
+.functioning-progress .icon { flex: none; }
+
+@media (max-width: 700px) {
+  .functioning-options { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 420px) {
+  .functioning-options { grid-template-columns: 1fr; }
+  .functioning-option { justify-content: flex-start; text-align: left; min-height: 44px; }
+}
