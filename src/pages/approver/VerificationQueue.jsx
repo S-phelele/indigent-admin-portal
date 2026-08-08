@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import { SkeletonTable, SkeletonStats, Refreshing } from '../components/ui/Skeleton';
-import api from '../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import { SkeletonTable, SkeletonStats, Refreshing } from '../../components/ui/Skeleton';
+import api from '../../services/api';
 
 /**
  * Applications waiting to be verified.

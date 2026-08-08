@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import api from '../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import api from '../../services/api';
 
 /**
  * Everything this councillor has captured.

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import { ConfirmModal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
+import api from '../../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
 
 const TABS = [
   { key: 'ALL', label: 'All' },

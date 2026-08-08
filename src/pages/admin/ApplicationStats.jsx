@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
-import { exportToExcel, exportToPdf } from '../utils/export';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import Icon from '../components/ui/Icon';
-import { useToast } from '../components/ui/Toast';
-import { label, EMPLOYMENT } from '../utils/labels';
+import api from '../../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import { exportToExcel, exportToPdf } from '../../utils/export';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import Icon from '../../components/ui/Icon';
+import { useToast } from '../../components/ui/Toast';
+import { label, EMPLOYMENT } from '../../utils/labels';
 
 export default function ApplicationStats() {
   const toast = useToast();

@@ -14,7 +14,7 @@ const AuthContext = createContext(null);
  * Residents are turned away: this portal has no resident-facing screens, so
  * letting an APPLICANT in would only strand them somewhere useless.
  */
-const STAFF_ROLES = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER'];
+const STAFF_ROLES = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -77,10 +77,11 @@ export function AuthProvider({ children }) {
   const isCouncillor = user?.role === 'COUNCILLOR';
   const canCapture = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER'].includes(user?.role);
   const canVerify = ['ADMIN', 'VERIFICATION_OFFICER'].includes(user?.role);
+  const canApprove = ['ADMIN', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'].includes(user?.role);
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, updateUser, isAdmin, isCouncillor, canCapture, canVerify }}
+      value={{ user, loading, login, logout, updateUser, isAdmin, isCouncillor, canCapture, canVerify, canApprove }}
     >
       {children}
     </AuthContext.Provider>

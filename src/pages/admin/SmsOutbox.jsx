@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import api from '../services/api';
-import { label, SMS_PURPOSE, SMS_STATUS } from '../utils/labels';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import api from '../../services/api';
+import { label, SMS_PURPOSE, SMS_STATUS } from '../../utils/labels';
 
 /**
  * Every SMS the register has tried to send.

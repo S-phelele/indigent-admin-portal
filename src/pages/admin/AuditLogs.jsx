@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import { label, AUDIT_ACTION, ROLE } from '../utils/labels';
+import api from '../../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import { label, AUDIT_ACTION, ROLE } from '../../utils/labels';
 
 const ACTIONS = [
   'ALL',

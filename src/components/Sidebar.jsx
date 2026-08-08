@@ -19,7 +19,9 @@ import Icon from './ui/Icon';
 const ADMIN = ['ADMIN'];
 const FIELD = ['COUNCILLOR', 'CAPTURE_OFFICER'];
 const VERIFIER = ['VERIFICATION_OFFICER'];
-const STAFF = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER'];
+const ASSESSOR = ['ASSESSMENT_OFFICER'];
+const SUPERVISOR = ['SUPERVISOR'];
+const STAFF = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 const SECTIONS = [
   {
@@ -54,14 +56,32 @@ const SECTIONS = [
     roles: VERIFIER,
     links: [
       { to: '/', label: 'My queue', icon: 'shield', end: true },
-      { to: '/verification', label: 'Verification queue', icon: 'applications' },
+      { to: '/verification', label: 'Site visits and checks', icon: 'mapPin' },
+    ],
+  },
+  {
+    label: 'Assessment',
+    roles: ASSESSOR,
+    links: [
+      { to: '/', label: 'My queue', icon: 'shield', end: true },
+      { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
+    ],
+  },
+  {
+    label: 'Sign-off',
+    roles: SUPERVISOR,
+    links: [
+      { to: '/', label: 'Awaiting my signature', icon: 'key', end: true },
+      { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
     ],
   },
   {
     label: 'Oversight',
     roles: ADMIN,
     links: [
-      { to: '/verification', label: 'Verification', icon: 'shield' },
+      { to: '/approvals', label: 'Approvals', icon: 'shield' },
+      { to: '/verification', label: 'Site visits', icon: 'mapPin' },
+      { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
       { to: '/sla', label: 'SLA Monitor', icon: 'clock' },
       { to: '/staff', label: 'Staff', icon: 'userCheck' },
       { to: '/sms', label: 'SMS Outbox', icon: 'message' },
@@ -83,6 +103,8 @@ const ROLE_LABELS = {
   COUNCILLOR: 'Ward Councillor',
   CAPTURE_OFFICER: 'Capture Officer',
   VERIFICATION_OFFICER: 'Verification Officer',
+  ASSESSMENT_OFFICER: 'Assessment Officer',
+  SUPERVISOR: 'Supervisor',
 };
 
 const initials = (user) => {

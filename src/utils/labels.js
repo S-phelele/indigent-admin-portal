@@ -18,6 +18,39 @@ export const ROLE = {
   COUNCILLOR: 'Ward Councillor',
   CAPTURE_OFFICER: 'Capture Officer',
   VERIFICATION_OFFICER: 'Verification Officer',
+  ASSESSMENT_OFFICER: 'Assessment Officer',
+  SUPERVISOR: 'Supervisor',
+};
+
+export const APPROVAL_STAGE = {
+  NOT_SUBMITTED: 'Not submitted',
+  VERIFICATION: 'Verification',
+  ASSESSMENT: 'Assessment',
+  SUPERVISOR_SIGNOFF: 'Sign-off',
+  COMPLETE: 'Complete',
+};
+
+export const MEANS_TEST = {
+  QUALIFIES: 'Qualifies',
+  ABOVE_THRESHOLD: 'Above the threshold',
+  INSUFFICIENT_DATA: 'Not enough information',
+};
+
+export const RENEWAL = {
+  NOT_APPLICABLE: '',
+  ACTIVE: 'Active',
+  DUE_SOON: 'Due soon',
+  OVERDUE: 'Overdue',
+  LAPSED: 'Lapsed',
+};
+
+export const STEP_OUTCOME = {
+  PENDING: 'In progress',
+  RECOMMEND_APPROVE: 'Recommended approval',
+  RECOMMEND_REJECT: 'Recommended refusal',
+  APPROVED: 'Approved',
+  REJECTED: 'Declined',
+  RETURNED: 'Sent back',
 };
 
 export const STATUS = {
@@ -155,6 +188,12 @@ export const AUDIT_ACTION = {
   VERIFICATION_CHECK: 'Recorded an external check',
   RECOMMEND_APPLICATION: 'Made a recommendation',
   REQUEST_INFORMATION: 'Asked the applicant for more',
+  ASSESS_APPLICATION: 'Completed a means test',
+  RETURN_APPLICATION: 'Sent an application back',
+  SIGN_OFF_APPLICATION: 'Signed an application off',
+  RENEW_REGISTRATION: 'Renewed a registration',
+  RENEWAL_CHECK: 'Ran the re-verification check',
+  PRINT_APPLICATION: 'Printed an application',
 };
 
 /** What each SMS was for. */
@@ -204,6 +243,7 @@ export function humanise(value) {
 }
 
 export default {
+  APPROVAL_STAGE, MEANS_TEST, RENEWAL, STEP_OUTCOME,
   ROLE, STATUS, EMPLOYMENT, MARITAL, TENURE, CATEGORY, CHANNEL,
   VERIFICATION_STAGE, VISIT_OUTCOME, CHECK_SOURCE, CHECK_OUTCOME,
   RECOMMENDATION, DOCUMENT_TYPE, AUDIT_ACTION, SMS_PURPOSE, SMS_STATUS,

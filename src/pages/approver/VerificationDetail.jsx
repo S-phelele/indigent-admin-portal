@@ -1,13 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import Modal, { ConfirmModal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import { SkeletonPanel, SkeletonStats } from '../components/ui/Skeleton';
-import api from '../services/api';
-import { friendlyError } from '../utils/apiError';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import { SkeletonPanel, SkeletonStats } from '../../components/ui/Skeleton';
+import api from '../../services/api';
+import { friendlyError } from '../../utils/apiError';
 
 /**
  * The verification workspace.

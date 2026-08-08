@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import { ConfirmModal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
+import api from '../../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
 
 const STATUS_CLASS = {
   DRAFT: 'badge-draft', PENDING: 'badge-pending', APPROVED: 'badge-approved', DECLINED: 'badge-declined',

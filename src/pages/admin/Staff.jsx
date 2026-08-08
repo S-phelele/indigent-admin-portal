@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import Modal, { ConfirmModal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import api from '../services/api';
-import { friendlyError } from '../utils/apiError';
-import { label, ROLE } from '../utils/labels';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import api from '../../services/api';
+import { friendlyError } from '../../utils/apiError';
+import { label, ROLE } from '../../utils/labels';
 
 /**
  * Managing ward councillors.

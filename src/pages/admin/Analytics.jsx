@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import { LineChart, BarList, Donut, Funnel, Gauge } from '../components/ui/Chart';
-import api from '../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import { LineChart, BarList, Donut, Funnel, Gauge } from '../../components/ui/Chart';
+import api from '../../services/api';
 
 /**
  * Analytics for whoever has to account for this register.

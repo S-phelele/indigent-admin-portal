@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import Modal, { ConfirmModal } from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
-import api from '../services/api';
-import { friendlyError } from '../utils/apiError';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import Modal, { ConfirmModal } from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+import api from '../../services/api';
+import { friendlyError } from '../../utils/apiError';
 
 /**
  * Capturing a resident's application on their behalf.

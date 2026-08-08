@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import AdminLayout from '../components/AdminLayout';
-import Icon from '../components/ui/Icon';
-import Modal from '../components/ui/Modal';
-import { useToast } from '../components/ui/Toast';
-import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
-import { friendlyError } from '../utils/apiError';
+import AdminLayout from '../../components/AdminLayout';
+import Icon from '../../components/ui/Icon';
+import Modal from '../../components/ui/Modal';
+import { useToast } from '../../components/ui/Toast';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
+import { friendlyError } from '../../utils/apiError';
 
 /**
  * Registering a household at the door.

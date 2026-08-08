@@ -2041,3 +2041,255 @@ select, .toolbar-select { min-height: 38px; }
   .sidebar-nav::-webkit-scrollbar { width: 0; }
 }
 
+
+/* ==========================================================================
+   25. The approval chain
+   Stage track, means test, decision, signature and case history.
+   ========================================================================== */
+
+/* --- Where the file is ---------------------------------------------------- */
+.stage-track {
+  display: flex; gap: .5rem; flex-wrap: wrap;
+  margin: 0 0 1.25rem; padding: 0; list-style: none;
+}
+.stage-step {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: .8125rem; font-weight: 600;
+  color: var(--ink-mute);
+}
+.stage-step-num {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--slate-100);
+  font-size: .75rem;
+  color: var(--ink-mute);
+}
+.stage-step.current { border-color: var(--brand); color: var(--brand-strong); }
+.stage-step.current .stage-step-num { background: var(--brand); color: #fff; }
+.stage-step.done { border-color: var(--success-line); color: var(--success); }
+.stage-step.done .stage-step-num { background: var(--success-soft); color: var(--success); }
+
+/* --- Means test ----------------------------------------------------------- */
+.means-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 2fr;
+  gap: 1.25rem;
+  align-items: center;
+}
+.means-headline {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--slate-50);
+}
+.means-headline.is-qualifies { border-left-color: var(--success); background: var(--success-soft); }
+.means-headline.is-above_threshold { border-left-color: var(--warning); background: var(--warning-soft); }
+.means-headline.is-insufficient_data { border-left-color: var(--slate-400); }
+.means-result { display: block; font-size: 1.125rem; font-weight: 700; color: var(--ink); }
+.means-detail { display: block; margin-top: .25rem; font-size: .8125rem; color: var(--ink-soft); }
+.means-grid .stat-pairs { margin-top: 0; }
+
+@media (max-width: 700px) {
+  .means-grid { grid-template-columns: 1fr; }
+}
+
+/* --- The decision --------------------------------------------------------- */
+.decision-choice { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.decision-option {
+  display: flex; align-items: center; gap: .6rem;
+  min-height: 56px;
+  padding: .75rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: .9375rem; font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.decision-option input { position: absolute; opacity: 0; pointer-events: none; }
+.decision-option:hover { background: var(--slate-50); }
+.decision-option.is-good.selected {
+  border-color: var(--success); background: var(--success-soft); color: var(--success);
+}
+.decision-option.is-bad.selected {
+  border-color: var(--danger); background: var(--danger-soft); color: var(--danger);
+}
+
+@media (max-width: 560px) {
+  .decision-choice { grid-template-columns: 1fr; }
+}
+
+/* --- Signature pad -------------------------------------------------------- */
+.signature-pad { display: grid; gap: .5rem; }
+.signature-pad-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.signature-canvas-wrap {
+  position: relative;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: #fff;
+  overflow: hidden;
+}
+.signature-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.signature-placeholder {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: .875rem;
+  color: var(--ink-mute);
+  pointer-events: none;
+}
+/* The line somebody signs on, the way a paper form has one. */
+.signature-baseline {
+  position: absolute; left: 8%; right: 8%; bottom: 22%;
+  height: 1px;
+  background: var(--slate-300);
+  pointer-events: none;
+}
+.signature-pad.is-disabled .signature-canvas-wrap { opacity: .6; }
+
+/* A signature already on the file. */
+.signature-record {
+  display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--slate-50);
+}
+.signature-image {
+  width: 220px; max-width: 100%; height: auto;
+  border-bottom: 1px solid var(--slate-400);
+  background: #fff;
+}
+
+/* --- Case history --------------------------------------------------------- */
+.case-timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.case-entry {
+  position: relative;
+  display: flex; gap: .9rem;
+  padding: .8rem 0 .8rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.case-entry:last-child { border-bottom: 0; }
+.case-dot {
+  flex: none;
+  width: 10px; height: 10px;
+  margin-top: .4rem;
+  border-radius: 50%;
+  background: var(--slate-300);
+}
+.case-entry.is-step .case-dot { background: var(--brand); }
+.case-entry.is-sensitive .case-dot { background: var(--warning); }
+.case-head { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.case-head strong { font-size: .875rem; }
+.case-entry p { margin: .15rem 0 0; }
+.case-entry.is-sensitive {
+  /* An edit to income or an ID number is what a review looks for. */
+  background: var(--warning-soft);
+  margin: 0 -1.25rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* ==========================================================================
+   26. The printable application form
+   Laid out for A4. The portal chrome is hidden so the paper carries the form
+   and nothing else.
+   ========================================================================== */
+
+.print-page { max-width: 900px; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+.print-toolbar {
+  display: flex; justify-content: space-between; gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.print-doc {
+  padding: 2.5rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  color: #111;
+}
+
+.print-head {
+  display: flex; align-items: center; gap: 1rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid #111;
+}
+.print-mark {
+  display: grid; place-items: center;
+  width: 46px; height: 46px; flex: none;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff; font-weight: 700;
+}
+.print-head h1 { margin: 0; font-size: 1.25rem; }
+.print-head p { margin: .15rem 0 0; font-size: .8125rem; color: #555; }
+.print-ref { margin-left: auto; text-align: right; }
+.print-ref-label { display: block; font-size: .6875rem; text-transform: uppercase; letter-spacing: .06em; color: #666; }
+.print-ref strong { font-size: 1rem; }
+
+.print-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem;
+  margin: 1.25rem 0;
+  padding: .9rem 0;
+  border-bottom: 1px solid #ddd;
+}
+.print-summary span { display: block; font-size: .6875rem; text-transform: uppercase; letter-spacing: .05em; color: #666; }
+.print-summary strong { font-size: .875rem; }
+
+.print-section { margin-top: 1.75rem; break-inside: avoid; }
+.print-section h2 {
+  margin: 0 0 .75rem;
+  padding-bottom: .35rem;
+  border-bottom: 1px solid #ccc;
+  font-size: .9375rem;
+}
+.print-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem 1.5rem; margin: 0; }
+.print-fields > div { margin: 0; }
+.print-fields dt { font-size: .6875rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
+.print-fields dd { margin: .1rem 0 0; font-size: .875rem; }
+
+.print-table { width: 100%; margin-top: .9rem; border-collapse: collapse; font-size: .8125rem; }
+.print-table th, .print-table td { padding: .4rem .5rem; border: 1px solid #ddd; text-align: left; }
+.print-table th { background: #f4f4f5; font-weight: 600; }
+
+.print-step { margin-top: 1rem; padding: .9rem; border: 1px solid #ddd; border-radius: 6px; break-inside: avoid; }
+.print-step-head { display: flex; justify-content: space-between; gap: 1rem; font-size: .8125rem; }
+.print-step p { margin: .4rem 0 0; font-size: .875rem; }
+.print-step-notes { color: #444; font-style: italic; }
+
+.print-signature { display: flex; align-items: flex-end; gap: 1.25rem; margin-top: .9rem; }
+.print-signature img { width: 190px; height: auto; border-bottom: 1px solid #111; }
+.print-signature strong { display: block; font-size: .875rem; }
+.print-signature span { display: block; font-size: .75rem; color: #555; }
+.print-signature-note { font-style: italic; }
+
+.print-foot { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #ddd; }
+.print-foot p { margin: 0; font-size: .6875rem; line-height: 1.6; color: #555; }
+
+/**
+ * Printing.
+ *
+ * The document is the page. Everything that only makes sense on a screen — the
+ * portal shell, the toolbar, toasts — is removed, and sections are kept off page
+ * breaks so a signature is never split across two sheets.
+ */
+@media print {
+  @page { size: A4; margin: 14mm; }
+
+  body { background: #fff; }
+  .admin-sidebar, .admin-topbar, .sidebar-overlay, .toast-region, .no-print { display: none !important; }
+  .admin-main { margin-left: 0 !important; }
+  .admin-content { padding: 0 !important; }
+
+  .print-page { max-width: none; margin: 0; padding: 0; }
+  .print-doc { padding: 0; border: 0; border-radius: 0; }
+  .print-section, .print-step, .print-signature, .print-table tr { break-inside: avoid; }
+  .print-head { break-after: avoid; }
+  a[href]::after { content: ""; }
+}

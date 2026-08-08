@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
-import LoadError, { loadErrorMessage } from '../components/LoadError';
-import Icon from '../components/ui/Icon';
-import { useToast } from '../components/ui/Toast';
+import api from '../../services/api';
+import AdminLayout from '../../components/AdminLayout';
+import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import Icon from '../../components/ui/Icon';
+import { useToast } from '../../components/ui/Toast';
 
 export default function SlaMonitor() {
   const toast = useToast();
