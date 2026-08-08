@@ -29,6 +29,7 @@ import Analytics from './pages/admin/Analytics';
 import SlaMonitor from './pages/admin/SlaMonitor';
 import AuditLogs from './pages/admin/AuditLogs';
 import Privacy from './pages/admin/Privacy';
+import StatisticsReport from './pages/admin/StatisticsReport';
 import Staff from './pages/admin/Staff';
 import SmsOutbox from './pages/admin/SmsOutbox';
 import Renewals from './pages/admin/Renewals';
@@ -115,6 +116,7 @@ export default function App() {
       <Route path="/sms" element={<AdminRoute><SmsOutbox /></AdminRoute>} />
       <Route path="/audit-logs" element={<AdminRoute><AuditLogs /></AdminRoute>} />
       <Route path="/privacy" element={<AdminRoute><Privacy /></AdminRoute>} />
+      <Route path="/statistics-report" element={<AdminRoute><StatisticsReport /></AdminRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

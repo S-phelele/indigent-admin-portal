@@ -122,20 +122,40 @@ export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts
   const sections = SECTIONS.filter((s) => s.roles.includes(user?.role));
 
   /**
-   * Keep the current page visible in the navigation.
+   * Bring the current page into view only when it genuinely is not.
    *
-   * An administrator has enough destinations that the list scrolls, so opening
-   * the Audit Log — the last item — could leave the sidebar showing Overview at
-   * the top with nothing highlighted. `block: 'nearest'` scrolls only when the
-   * item is actually out of view, so a link already on screen does not cause the
-   * list to jump under the pointer.
+   * This used to call `scrollIntoView`, which was wrong in a way that is easy to
+   * miss: it scrolls the whole chain of scrollable ancestors, not just the list
+   * it was aimed at. Clicking a link therefore nudged the page as well as the
+   * nav, so the destination appeared to move out from under the pointer.
+   *
+   * Setting `scrollTop` on the nav itself cannot touch anything else. And the
+   * adjustment is skipped whenever the active link is already inside the visible
+   * band — which is the case for every ordinary click — so the normal experience
+   * is that nothing moves at all. The highlight and the brand-coloured bar are
+   * what show where you are; scrolling is only for the case where the link is
+   * genuinely off-screen, such as landing on the Audit Log from a deep link.
    */
   useEffect(() => {
-    const active = navRef.current?.querySelector('.sidebar-link.active');
-    if (!active) return;
+    const nav = navRef.current;
+    const active = nav?.querySelector('.sidebar-link.active');
+    if (!nav || !active) return;
+
+    const top = active.offsetTop;
+    const bottom = top + active.offsetHeight;
+    const viewTop = nav.scrollTop;
+    const viewBottom = viewTop + nav.clientHeight;
+
+    // A margin so a link flush against an edge is treated as needing the nudge
+    // rather than being technically visible but half under a fade.
+    const margin = 8;
+    if (top >= viewTop + margin && bottom <= viewBottom - margin) return;
 
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    active.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    nav.scrollTo({
+      top: Math.max(0, top - nav.clientHeight / 2 + active.offsetHeight / 2),
+      behavior: reduced ? 'auto' : 'smooth',
+    });
   }, [pathname, collapsed]);
 
   return (

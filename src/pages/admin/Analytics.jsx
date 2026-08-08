@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import Icon from '../../components/ui/Icon';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
@@ -108,18 +109,32 @@ export default function Analytics() {
       title="Analytics"
       description="How the register is performing, who it is reaching, and where the need sits."
       actions={
-        <div className="segmented" role="group" aria-label="Reporting period">
-          {PERIODS.map((p) => (
-            <button
-              key={p.days}
-              type="button"
-              className={period === p.days ? 'active' : ''}
-              onClick={() => setPeriod(p.days)}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="segmented" role="group" aria-label="Reporting period">
+            {PERIODS.map((p) => (
+              <button
+                key={p.days}
+                type="button"
+                className={period === p.days ? 'active' : ''}
+                onClick={() => setPeriod(p.days)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {/*
+            Both outputs from the same report: the workbook for somebody who will
+            pivot and chart the numbers, the printable version for a committee
+            paper. A direct link rather than a fetch, so the browser handles the
+            download and a large file never sits in memory.
+          */}
+          <a className="btn btn-outline btn-sm" href="/api/export/statistics.xls">
+            <Icon name="download" size={15} /> Excel
+          </a>
+          <Link className="btn btn-outline btn-sm" to="/statistics-report">
+            <Icon name="file" size={15} /> Full report
+          </Link>
+        </>
       }
     >
       <LoadError message={error} />

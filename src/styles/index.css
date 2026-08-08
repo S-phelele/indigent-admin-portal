@@ -541,7 +541,28 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-size: .6875rem; color: #94a3b8; letter-spacing: .04em; text-transform: uppercase;
 }
 
-.sidebar-nav { flex: 1; overflow-y: auto; padding: .75rem .5rem; }
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: .75rem .5rem;
+  /*
+   * A thin scrollbar that reads as part of the rail.
+   *
+   * The browser default drew a hard light line down the dark sidebar, which
+   * looked like a seam between two panels rather than a scroll affordance.
+   * `scrollbar-gutter: stable` keeps the width reserved so the links do not
+   * shift sideways the moment the list grows long enough to scroll.
+   */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .14) transparent;
+  scrollbar-gutter: stable;
+  /* A flick at the end of the nav must not start scrolling the page behind it. */
+  overscroll-behavior: contain;
+}
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .12); border-radius: 3px; }
+.sidebar-nav:hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .22); }
 .sidebar-section {
   padding: .9rem .75rem .35rem;
   font-size: .6875rem;
@@ -2474,4 +2495,65 @@ select, .toolbar-select { min-height: 38px; }
   /* Stacked on a phone so neither button is too narrow to hit reliably. */
   .idle-actions { flex-direction: column-reverse; }
   .idle-actions .btn { width: 100%; }
+}
+
+/* --- Statistics report ----------------------------------------------------
+ * Shares .print-page and .print-doc with the printable application form, so
+ * both documents come off the printer looking like the same municipality.
+ */
+.report-headline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin: 1.25rem 0 2rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.report-headline > div { display: flex; flex-direction: column; gap: .15rem; }
+.rh-value { font-size: 1.6rem; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rh-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+
+.report-section { margin-bottom: 2rem; }
+.report-section h2 {
+  margin: 0 0 .35rem;
+  font-size: 1.0625rem;
+  font-weight: 650;
+}
+.report-note {
+  margin: 0 0 .75rem;
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 70ch;
+}
+
+.report-table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
+.report-table th {
+  text-align: left;
+  font-weight: 650;
+  padding: .45rem .6rem;
+  border-bottom: 2px solid var(--text);
+  white-space: nowrap;
+}
+.report-table td {
+  padding: .4rem .6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+/* Figures line up when they share a width, which is what makes a column
+ * scannable rather than something to read row by row. */
+.report-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media print {
+  /* A table split across a page break loses its header, so keep each section
+   * whole wherever it will fit. */
+  .report-section { break-inside: avoid; page-break-inside: avoid; }
+  .report-table { font-size: 9pt; }
+  .report-headline { break-inside: avoid; }
+  .rh-value { font-size: 1.3rem; }
+}
+
+@media (max-width: 720px) {
+  .report-headline { grid-template-columns: repeat(2, 1fr); }
 }
