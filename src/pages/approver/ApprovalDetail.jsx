@@ -6,6 +6,7 @@ import Modal from '../../components/ui/Modal';
 import SignaturePad from '../../components/SignaturePad';
 import { useToast } from '../../components/ui/Toast';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import ApprovalTrail from '../../components/ApprovalTrail';
 import { SkeletonPanel, SkeletonStats } from '../../components/ui/Skeleton';
 import { friendlyError } from '../../utils/apiError';
 import { label, TENURE, CATEGORY, EMPLOYMENT, STATUS } from '../../utils/labels';
@@ -292,24 +293,20 @@ export default function ApprovalDetail() {
         ) : null}
       </section>
 
-      {/* --- Signatures already on the file ------------------------------- */}
-      {signatures?.length ? (
-        <section className="panel">
-          <div className="panel-header"><h2>Signed</h2></div>
-          {signatures.map((s, i) => (
-            <div className="signature-record" key={i}>
-              <img src={s.image} alt={`Signature of ${s.name}`} className="signature-image" />
-              <div>
-                <strong>{s.name}</strong>
-                <p className="field-hint">
-                  {s.signedAtLabel}{s.ip ? ` · from ${s.ip}` : ''}
-                  <br />{s.statement}
-                </p>
-              </div>
-            </div>
-          ))}
-        </section>
-      ) : null}
+      {/*
+        What earlier officers decided, and why.
+
+        The signature panel that used to sit here showed only the image; the
+        trail carries each signature against the step it belongs to, along with
+        the reasoning behind every stage. An assessment officer needs the
+        verifier's grounds, not just their verdict, and a supervisor is signing
+        for a chain they have to be able to read.
+      */}
+      <ApprovalTrail
+        trail={data.trail}
+        signatures={signatures}
+        title="What has happened so far"
+      />
 
       {/* --- The decision -------------------------------------------------- */}
       {position.canAct ? (

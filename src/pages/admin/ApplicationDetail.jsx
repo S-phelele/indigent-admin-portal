@@ -6,6 +6,7 @@ import Icon from '../../components/ui/Icon';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import { useToast } from '../../components/ui/Toast';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
+import ApprovalTrail from '../../components/ApprovalTrail';
 import { friendlyError } from '../../utils/apiError';
 
 const isImage = (mime, fileName) =>
@@ -499,6 +500,15 @@ export default function ApplicationDetail() {
           </div>
         )}
       </section>
+
+      {/*
+        The approval chain.
+        This screen previously showed the household's answers and nothing about
+        how the application had been decided — no stages, no officers, no
+        reasons, no signature. That is the half of the record an audit asks for
+        first, so it now sits directly above the review notes.
+      */}
+      <ApprovalTrail trail={app.trail} signatures={app.signatures} />
 
       <section className="panel">
         <h3 className="panel-title">Review notes</h3>

@@ -2557,3 +2557,117 @@ select, .toolbar-select { min-height: 38px; }
 @media (max-width: 720px) {
   .report-headline { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* --- Approval trail -------------------------------------------------------
+ * The decision history: who acted, what they decided, why. Shown identically
+ * on the administrator's application view and the approver's case file.
+ */
+.trail { list-style: none; margin: 0; padding: 0; }
+
+.trail-step {
+  position: relative;
+  display: flex;
+  gap: .85rem;
+  padding: 0 0 1.25rem 0;
+}
+/* The connecting line runs behind the marks and stops at the last one, so the
+ * chain reads as finished rather than trailing off. */
+.trail-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 28px;
+  bottom: 0;
+  width: 2px;
+  background: var(--line);
+}
+.trail-step:last-child { padding-bottom: 0; }
+
+.trail-mark {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-mute);
+}
+.trail-approved .trail-mark { border-color: var(--success-line); background: var(--success-soft); color: var(--success); }
+.trail-declined .trail-mark { border-color: var(--danger-line);  background: var(--danger-soft);  color: var(--danger); }
+.trail-draft    .trail-mark { border-color: var(--warning-line); background: var(--warning-soft); color: var(--warning); }
+.trail-pending  .trail-mark { border-color: var(--info-line);    background: var(--info-soft);    color: var(--info); }
+
+.trail-body { flex: 1; min-width: 0; padding-top: .15rem; }
+
+.trail-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: .15rem;
+}
+.trail-head strong { font-size: .9375rem; }
+
+.trail-who  { margin: 0; font-size: .875rem; color: var(--ink); }
+.trail-when { margin: .1rem 0 0; font-size: .75rem; color: var(--ink-mute); }
+
+.trail-returned {
+  display: inline-flex; align-items: center; gap: .3rem;
+  margin: .4rem 0 0;
+  font-size: .8125rem;
+  color: var(--warning);
+}
+
+/* The reason, set apart so it reads as the officer's own words rather than as
+ * more interface text. */
+.trail-why {
+  margin: .5rem 0 0;
+  padding: .5rem .75rem;
+  border-left: 3px solid var(--line-strong);
+  background: var(--slate-50);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: .875rem;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
+/* Silence is worth stating: a decision with no recorded reason is a finding. */
+.trail-nowhy {
+  margin: .4rem 0 0;
+  font-size: .8125rem;
+  font-style: italic;
+  color: var(--warning);
+}
+
+.trail-signature {
+  display: flex;
+  align-items: center;
+  gap: .85rem;
+  margin-top: .65rem;
+  padding: .65rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.trail-signature .signature-image {
+  width: 140px; height: 60px;
+  object-fit: contain;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 560px) {
+  .trail-signature { flex-direction: column; align-items: flex-start; }
+  .trail-signature .signature-image { width: 100%; }
+}
+
+@media print {
+  /* The trail is the part of the file an auditor asks for, so it must survive
+     being printed with the application. */
+  .trail-step { break-inside: avoid; page-break-inside: avoid; }
+}
