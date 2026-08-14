@@ -20,17 +20,22 @@ import { label, ROLE } from '../../utils/labels';
  * would strip that from applications the municipality may later have to defend.
  */
 
-const ROLES = [
-  { value: 'COUNCILLOR', label: 'Ward Councillor', hint: 'Captures applications door to door in a ward.' },
-  { value: 'CAPTURE_OFFICER', label: 'Capture Officer', hint: 'Captures walk-in applications at the front desk.' },
-  { value: 'VERIFICATION_OFFICER', label: 'Verification Officer', hint: 'Checks captured applications and recommends an outcome.' },
-];
-
 const blank = { firstName: '', lastName: '', email: '', cellNumber: '', ward: '', idNumber: '', role: 'COUNCILLOR' };
 
 export default function Staff() {
   const toast = useToast();
   const [councillors, setCouncillors] = useState([]);
+  /**
+   * The roles this administrator may assign, as the server reports them.
+   *
+   * This was a hardcoded list of three where the enum has seven, and the two it
+   * left out — Assessment Officer and Supervisor — own stages two and three of
+   * the approval chain. Nobody could be appointed to half the workflow except
+   * through the seed script, and nothing on the screen hinted at the gap.
+   * Reading it from the API also means a role added to the schema appears here
+   * without an edit in this repository.
+   */
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -54,6 +59,15 @@ export default function Staff() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [statusFilter, roleFilter]);
+
+  // Fetched once. The assignable set depends on who is signed in — a superuser
+  // may also hand out Administrator and Super Administrator — so it cannot be
+  // decided here.
+  useEffect(() => {
+    api.get('/admin/staff/roles')
+      .then((res) => setRoles(res.data.data))
+      .catch(() => setRoles([]));
+  }, []);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -151,7 +165,7 @@ export default function Staff() {
   return (
     <AdminLayout
       title="Municipal staff"
-      description="Councillors, capture officers and verification officers. Administrators are not created here."
+      description="Everyone who works the register: councillors, capture, verification, assessment and sign-off."
       actions={
         <button type="button" className="btn btn-primary" onClick={() => { setForm(blank); setFormError(''); setShowForm(true); }}>
           <Icon name="userPlus" size={16} /> Add a staff member
@@ -168,7 +182,7 @@ export default function Staff() {
           aria-label="Filter by role"
         >
           <option value="">All roles</option>
-          {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          {roles.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
         <div className="toolbar-actions">
           {[
@@ -301,9 +315,9 @@ export default function Staff() {
 
           <label className="form-group span-2"><span>Role <em>required</em></span>
             <select value={form.role} onChange={set('role')} required>
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+              {roles.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
-            <small>{ROLES.find((r) => r.value === form.role)?.hint}</small>
+            <small>{roles.find((r) => r.value === form.role)?.hint}</small>
           </label>
 
           <label className="form-group"><span>First name <em>required</em></span>
