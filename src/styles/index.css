@@ -3559,3 +3559,63 @@ select, .toolbar-select { min-height: 38px; }
   .upload-progress-fill { transition: none; }
   .upload-progress-fill.indeterminate { animation: none; left: 0; width: 100%; opacity: .45; }
 }
+
+/* ---------------------------------------------------------------------------
+   Report filters and the criteria block
+
+   The filter bar is screen-only — it is a control, not part of the report. The
+   criteria block is the opposite: it must survive printing, because a PDF
+   forwarded into a council pack has nothing else on it to say whether the
+   figures cover one ward or all of them.
+   --------------------------------------------------------------------------- */
+
+.report-filters { margin-bottom: 1.25rem; }
+
+.report-filters-head { display: flex; align-items: center; gap: 1rem; }
+
+.report-filters-body {
+  margin-top: .75rem;
+  padding: 1rem;
+  background: var(--slate-50);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.report-filters-actions { margin-top: .85rem; }
+
+.report-criteria {
+  margin-bottom: 1.5rem;
+  padding: .85rem 1rem;
+  background: var(--slate-50);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.report-criteria h2 { font-size: .9375rem; margin: 0 0 .5rem; }
+
+.report-criteria dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: .35rem 1.5rem;
+  margin: 0;
+}
+
+.report-criteria dt {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-mute);
+}
+.report-criteria dd { margin: 0 0 .35rem; font-weight: 550; }
+
+@media print {
+  /* The filter bar is a control and does not belong on paper. The criteria do. */
+  .report-filters { display: none; }
+  .report-criteria { background: none; border: 1px solid #999; }
+}
+
+/* A link that is a button, because it changes state rather than navigating. */
+.btn-link {
+  background: none; border: 0; padding: 0;
+  color: var(--brand); font: inherit; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.btn-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

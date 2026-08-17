@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon from '../../components/ui/Icon';
+import ReportFilters, { EMPTY_FILTERS, toQuery } from '../../components/ReportFilters';
 import { loadErrorMessage } from '../../components/LoadError';
 import { SkeletonPanel } from '../../components/ui/Skeleton';
 import api from '../../services/api';
@@ -37,13 +38,16 @@ export default function StatisticsReport() {
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [applied, setApplied] = useState('');
 
   useEffect(() => {
-    api.get('/export/statistics')
+    setLoading(true);
+    api.get(`/export/statistics${applied ? `?${applied}` : ''}`)
       .then((res) => setReport(res.data.data))
       .catch((err) => setError(loadErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [applied]);
 
   if (loading) {
     return <div className="print-page"><SkeletonPanel height={280} /></div>;
@@ -71,7 +75,9 @@ export default function StatisticsReport() {
           <Icon name="arrow-left" size={15} /> Back to analytics
         </Link>
         <div className="row-actions">
-          <a className="btn btn-outline btn-sm" href="/api/export/statistics.xls">
+          {/* The workbook carries the same filters, so a downloaded file cannot
+              describe a different set of applications from the page it came from. */}
+          <a className="btn btn-outline btn-sm" href={`/api/export/statistics.xls${applied ? `?${applied}` : ''}`}>
             <Icon name="download" size={15} /> Download for Excel
           </a>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
@@ -79,6 +85,12 @@ export default function StatisticsReport() {
           </button>
         </div>
       </div>
+
+      <ReportFilters
+        value={filters}
+        onChange={setFilters}
+        onApply={(next) => setApplied(toQuery(next))}
+      />
 
       <article className="print-doc">
         <header className="print-head">
@@ -91,6 +103,29 @@ export default function StatisticsReport() {
             </p>
           </div>
         </header>
+
+        {/*
+          What these figures cover, printed above them.
+
+          A statistic without its criteria is not a statistic. This page gets
+          saved as a PDF and forwarded into a council pack, and at that point
+          nothing else on the paper says whether it is one ward or all of them.
+          Always shown — an unfiltered report says "all wards" rather than
+          leaving the reader to assume.
+        */}
+        {report.filters?.length ? (
+          <section className="report-criteria">
+            <h2>What these figures cover</h2>
+            <dl>
+              {report.filters.map((f) => (
+                <div key={f.label}>
+                  <dt>{f.label}</dt>
+                  <dd>{f.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
 
         {/* The four figures somebody wants before reading anything else. */}
         <section className="report-headline">
