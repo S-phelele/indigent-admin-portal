@@ -55,7 +55,7 @@ export default function ApplicationDetail() {
 
   const EDIT_FIELDS = [
     { group: 'Applicant', fields: [
-      ['names', 'Names', 'text'], ['surname', 'Surname', 'text'],
+      ['fullName', 'Full name', 'text'], ['surname', 'Surname', 'text'],
       ['idNumber', 'ID number', 'text'], ['cellNumber', 'Cell number', 'text'],
       ['maritalStatus', 'Marital status', 'select', ['', 'SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'SEPARATED']],
       ['employmentStatus', 'Employment status', 'select', ['', 'EMPLOYED', 'UNEMPLOYED', 'SELF_EMPLOYED', 'PENSIONER', 'OTHER']],
@@ -144,7 +144,7 @@ export default function ApplicationDetail() {
       setDecision(null);
       toast.success(
         decision === 'APPROVED' ? 'Application approved' : 'Application declined',
-        `${[res.data.data.names, res.data.data.surname].filter(Boolean).join(' ')} has been notified in the register.`
+        `${[res.data.data.fullName || res.data.data.names, res.data.data.surname].filter(Boolean).join(' ')} has been notified in the register.`
       );
     } catch (err) {
       toast.error('Could not record the decision', err.response?.data?.message || err.message);
@@ -227,7 +227,8 @@ export default function ApplicationDetail() {
     );
   }
 
-  const applicantName = [app.names, app.surname].filter(Boolean).join(' ') || 'Application';
+  // Falls back to the old column for records written before the migration.
+  const applicantName = [app.fullName || app.names, app.surname].filter(Boolean).join(' ') || 'Application';
   const requiredOutstanding = (app.documents || []).filter((d) => d.importance === 'REQUIRED' && d.status !== 'Uploaded');
 
   return (

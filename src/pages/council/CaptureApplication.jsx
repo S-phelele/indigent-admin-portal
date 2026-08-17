@@ -5,6 +5,7 @@ import Icon from '../../components/ui/Icon';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import DerivedIdentity from '../../components/DerivedIdentity';
 import IncomeSources from '../../components/IncomeSources';
+import HouseholdEditor from '../../components/HouseholdEditor';
 import FunctioningQuestions from '../../components/FunctioningQuestions';
 import { useToast } from '../../components/ui/Toast';
 import api from '../../services/api';
@@ -27,7 +28,7 @@ import { friendlyError } from '../../utils/apiError';
  */
 
 const empty = {
-  surname: '', names: '', idNumber: '', cellNumber: '', maritalStatus: '',
+  surname: '', fullName: '', idNumber: '', cellNumber: '', maritalStatus: '',
   residentialAddress: '', postalAddress: '',
   peopleOnProperty: '', childrenUnder18: '', adults: '', pensionersOver60: '',
   waterMeterNumber: '', electricityMeterNumber: '',
@@ -41,13 +42,31 @@ const empty = {
 };
 
 const STRINGS = [
-  'surname', 'names', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
+  'surname', 'fullName', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
   'postalAddress',
   'waterMeterNumber', 'electricityMeterNumber',
   'difficultySeeing', 'difficultyHearing', 'difficultyWalking',
   'difficultyRemembering', 'difficultySelfCare', 'difficultyCommunicating',
 ];
 const INTS = ['peopleOnProperty', 'childrenUnder18', 'adults', 'pensionersOver60'];
+
+/**
+ * Initials from whatever given names were typed.
+ *
+ * Mirrors src/lib/names.js on the server. The first *letter* rather than the
+ * first character, because people bracket a preferred name and
+ * "Nomsa (Thandiwe)" should still give N.T.
+ */
+function initialsOf(fullName) {
+  return String(fullName || '')
+    .trim()
+    .split(/\s+/)
+    .flatMap((part) => part.split('-'))
+    .map((part) => [...part].find((ch) => /\p{L}/u.test(ch)))
+    .filter(Boolean)
+    .map((ch) => ch.toUpperCase() + '.')
+    .join('');
+}
 // Income is captured as rows against /applications/:id/income and its totals
 // are derived there. Nothing about money is sent from this form any more.
 const MONEY = [];
@@ -236,7 +255,7 @@ export default function CaptureApplication() {
     );
   }
 
-  const name = [application.names, application.surname].filter(Boolean).join(' ') || 'this household';
+  const name = [application.fullName || application.names, application.surname].filter(Boolean).join(' ') || 'this household';
   const required = documents.filter((d) => d.importance === 'REQUIRED' && !d.requirementGroup);
   const grouped = documents.filter((d) => d.requirementGroup);
   const optional = documents.filter((d) => d.importance === 'OPTIONAL' && !d.requirementGroup);
@@ -283,7 +302,14 @@ export default function CaptureApplication() {
       <section className="panel">
         <div className="panel-header"><h2>Applicant particulars</h2></div>
         <div className="form-grid">
-          <label className="form-group"><span>First names</span><input value={form.names} onChange={set('names')} /></label>
+          {/* Every given name, in one field. "First names" was filled in
+              inconsistently, and a household captured at a door is the one most
+              likely to end up with a letter addressed to the wrong name. */}
+          <label className="form-group">
+            <span>Full name</span>
+            <input value={form.fullName} onChange={set('fullName')} placeholder="All given names, as on the ID" />
+            {initialsOf(form.fullName) ? <small>Initials: {initialsOf(form.fullName)}</small> : null}
+          </label>
           <label className="form-group"><span>Surname</span><input value={form.surname} onChange={set('surname')} /></label>
           <label className="form-group">
             <span>ID number</span>
@@ -363,6 +389,26 @@ export default function CaptureApplication() {
           <label className="form-group"><span>Water meter number</span><input value={form.waterMeterNumber} onChange={set('waterMeterNumber')} /></label>
           <label className="form-group"><span>Electricity meter number</span><input value={form.electricityMeterNumber} onChange={set('electricityMeterNumber')} /></label>
         </div>
+
+        {/*
+          Room to list the people the headcount claims.
+
+          This form had a "people on the property" box and nowhere to name them,
+          so a councillor could declare five and record one. Submission now
+          refuses a roll that does not match the count — income per person is
+          half the means test and is computed from the typed number — which
+          without this editor would make a household of more than one
+          unsubmittable from the door.
+        */}
+        {application?.id ? (
+          <HouseholdEditor
+            applicationId={application.id}
+            declaredPeople={form.peopleOnProperty}
+            onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
+          />
+        ) : (
+          <p className="muted">Save the resident&rsquo;s details first, then the rest of the household can be listed.</p>
+        )}
       </section>
 
       {/*
