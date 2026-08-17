@@ -9,6 +9,8 @@ import HouseholdEditor from '../../components/HouseholdEditor';
 import FunctioningQuestions from '../../components/FunctioningQuestions';
 import { useToast } from '../../components/ui/Toast';
 import api from '../../services/api';
+import useUpload from '../../hooks/useUpload';
+import UploadProgress from '../../components/ui/UploadProgress';
 import { friendlyError } from '../../utils/apiError';
 
 /**
@@ -115,6 +117,7 @@ export default function CaptureApplication() {
   const toast = useToast();
 
   const [application, setApplication] = useState(null);
+  const { progress, done: justUploaded, upload: sendFile, cancel } = useUpload();
   const [form, setForm] = useState(empty);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -221,7 +224,11 @@ export default function CaptureApplication() {
     body.append('file', file);
     body.append('documentId', slot.id);
     try {
-      await api.post(`/documents/${id}/upload`, body);
+      const res = await sendFile(slot.id, `/documents/${id}/upload`, body, {
+        fileName: file.name, size: file.size,
+      });
+      // Cancelling is a choice, not a failure — nothing is said about it.
+      if (res?.cancelled) return;
       toast.success(`${slot.name} captured.`);
       await load();
     } catch (err) {
@@ -262,6 +269,21 @@ export default function CaptureApplication() {
   const groupSatisfied = grouped.some((d) => d.status === 'Uploaded');
 
   const slotRow = (slot, { note } = {}) => (
+    /* While this slot is uploading it becomes the progress row. A councillor at
+       a door on a weak signal needs to see bytes moving, not a button that
+       looks unpressed — that is where a second tap becomes a duplicate. */
+    (progress?.key === slot.id || justUploaded === slot.id) ? (
+      <li key={slot.id} className="doc-slot">
+        <UploadProgress
+          fileName={progress?.fileName || slot.fileName || slot.name}
+          fraction={justUploaded === slot.id ? 1 : progress?.fraction}
+          loaded={progress?.loaded}
+          total={progress?.total}
+          onCancel={justUploaded === slot.id ? null : cancel}
+          done={justUploaded === slot.id}
+        />
+      </li>
+    ) : (
     <li key={slot.id} className={`doc-slot${slot.status === 'Uploaded' ? ' done' : ''}`}>
       <div className="doc-slot-main">
         <Icon name={slot.status === 'Uploaded' ? 'check' : 'file'} size={16} />
@@ -284,6 +306,7 @@ export default function CaptureApplication() {
         </button>
       </div>
     </li>
+    )
   );
 
   return (
