@@ -2689,3 +2689,95 @@ select, .toolbar-select { min-height: 38px; }
      being printed with the application. */
   .trail-step { break-inside: avoid; page-break-inside: avoid; }
 }
+
+/* ---------------------------------------------------------------------------
+   Income sources
+
+   A list that grows, rather than five fixed amount boxes. A household with two
+   grants and a lodger is three rows, and the layout has to hold any number of
+   them without the amounts stopping lining up — hence tabular numerals and a
+   fixed column for the figure.
+   --------------------------------------------------------------------------- */
+
+.form-section-lede {
+  margin: -.25rem 0 1.25rem;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+.income-list { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: .5rem; }
+
+.income-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: .75rem;
+  padding: .7rem .85rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.income-row-main { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.income-row-detail { font-size: .8125rem; color: var(--ink-mute); }
+
+.income-row-amount {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.income-row-actions { display: flex; gap: .25rem; }
+
+.btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px;
+  border: 1px solid transparent; border-radius: var(--radius);
+  background: none; color: var(--ink-mute); cursor: pointer;
+}
+.btn-icon:hover { background: var(--slate-100); color: var(--ink); }
+.btn-icon:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.income-total {
+  padding: .85rem 1rem;
+  background: var(--slate-50);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.income-total-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+.income-total-row + .income-total-row { margin-top: .3rem; font-size: .875rem; }
+.income-total-row.muted { color: var(--ink-mute); }
+
+.income-form {
+  padding: 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--slate-50);
+  margin-bottom: 1rem;
+}
+.income-form-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+
+.income-actions { display: flex; flex-direction: column; gap: .85rem; align-items: flex-start; }
+
+/* Offered plainly rather than buried. Having no income at all is the commonest
+   answer in this register, and an applicant who cannot find how to say so will
+   either invent a figure or give up. */
+.income-none { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+.income-none input { width: auto; min-height: 0; }
+
+.income-declared-none {
+  display: inline-flex; align-items: center; gap: .4rem;
+  margin-top: .85rem;
+  color: var(--success);
+  font-size: .875rem;
+}
+
+@media (max-width: 560px) {
+  .income-row { grid-template-columns: 1fr auto; }
+  .income-row-actions { grid-column: 2; }
+}

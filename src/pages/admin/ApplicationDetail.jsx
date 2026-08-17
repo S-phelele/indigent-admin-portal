@@ -401,16 +401,36 @@ export default function ApplicationDetail() {
 
       <section className="panel">
         <h3 className="panel-title">Household income</h3>
+        {/*
+          Every source the household declared, not five fixed columns.
+
+          The old panel could show a salary and one pension and nothing else; a
+          household with two grants and a lodger had its second grant silently
+          absent from the screen an assessor decides on.
+        */}
+        {(app.incomeSources || []).length > 0 ? (
+          <ul className="income-list">
+            {app.incomeSources.map((s) => (
+              <li key={s.id} className="income-row">
+                <div className="income-row-main">
+                  <strong>{s.label || s.type}</strong>
+                  {s.sentence && s.sentence !== s.label ? (
+                    <span className="income-row-detail">{s.sentence.replace(s.label + ' — ', '')}</span>
+                  ) : null}
+                </div>
+                <span className="income-row-amount">{money(s.monthlyAmount)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : app.declaredNoIncome ? (
+          <p className="muted">The household declared that it has no income at all.</p>
+        ) : (
+          /* Not the same as declaring nothing, and an assessor has to be able to
+             tell them apart — one qualifies, the other is an unanswered form. */
+          <p className="muted">No income was recorded. The income section was not answered.</p>
+        )}
+
         <div className="form-row">
-          <Field label="Salary">{money(app.salary)}</Field>
-          <Field label="Old age pension">{money(app.oldAgePension)}</Field>
-        </div>
-        <div className="form-row">
-          <Field label="Disability pension">{money(app.disabilityPension)}</Field>
-          <Field label="Business income">{money(app.businessIncome)}</Field>
-        </div>
-        <div className="form-row">
-          <Field label="Renting income">{money(app.rentingIncome)}</Field>
           <Field label="Income per person">{money(app.totalIncomePerPerson)}</Field>
         </div>
         <div

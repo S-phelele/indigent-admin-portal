@@ -4,6 +4,7 @@ import AdminLayout from '../../components/AdminLayout';
 import Icon from '../../components/ui/Icon';
 import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import DerivedIdentity from '../../components/DerivedIdentity';
+import IncomeSources from '../../components/IncomeSources';
 import FunctioningQuestions from '../../components/FunctioningQuestions';
 import { useToast } from '../../components/ui/Toast';
 import api from '../../services/api';
@@ -27,11 +28,9 @@ import { friendlyError } from '../../utils/apiError';
 
 const empty = {
   surname: '', names: '', idNumber: '', cellNumber: '', maritalStatus: '',
-  residentialAddress: '', postalAddress: '', employmentStatus: '',
-  employerName: '', workTelNumber: '',
+  residentialAddress: '', postalAddress: '',
   peopleOnProperty: '', childrenUnder18: '', adults: '', pensionersOver60: '',
   waterMeterNumber: '', electricityMeterNumber: '',
-  salary: '', oldAgePension: '', disabilityPension: '', businessIncome: '', rentingIncome: '',
   ownsImmovableProperty: '', isFullTimeOccupant: '', incomeBelowThreshold: '',
   hasMunicipalArrears: '', hasArrearsArrangement: '',
   addressLatitude: '', addressLongitude: '', addressFormatted: '', addressSource: '', addressAccuracyM: '',
@@ -43,13 +42,15 @@ const empty = {
 
 const STRINGS = [
   'surname', 'names', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
-  'postalAddress', 'employmentStatus', 'employerName', 'workTelNumber',
+  'postalAddress',
   'waterMeterNumber', 'electricityMeterNumber',
   'difficultySeeing', 'difficultyHearing', 'difficultyWalking',
   'difficultyRemembering', 'difficultySelfCare', 'difficultyCommunicating',
 ];
 const INTS = ['peopleOnProperty', 'childrenUnder18', 'adults', 'pensionersOver60'];
-const MONEY = ['salary', 'oldAgePension', 'disabilityPension', 'businessIncome', 'rentingIncome'];
+// Income is captured as rows against /applications/:id/income and its totals
+// are derived there. Nothing about money is sent from this form any more.
+const MONEY = [];
 const BOOLS = ['ownsImmovableProperty', 'isFullTimeOccupant', 'incomeBelowThreshold', 'hasMunicipalArrears', 'hasArrearsArrangement'];
 
 const num = (v) => (v === '' || v === null || v === undefined ? undefined : (Number.isFinite(Number(v)) ? Number(v) : undefined));
@@ -300,15 +301,9 @@ export default function CaptureApplication() {
               ))}
             </select>
           </label>
-          <label className="form-group">
-            <span>Employment status</span>
-            <select value={form.employmentStatus} onChange={set('employmentStatus')}>
-              <option value="">Not stated</option>
-              {['EMPLOYED', 'UNEMPLOYED', 'SELF_EMPLOYED', 'PENSIONER', 'OTHER'].map((v) => (
-                <option key={v} value={v}>{v.charAt(0) + v.slice(1).toLowerCase().replace('_', ' ')}</option>
-              ))}
-            </select>
-          </label>
+          {/* Employment is not asked. It is derived from the income answers:
+              a salary means employed, a business means self-employed. Asking it
+              here as well would give the form two places to disagree. */}
         </div>
       </section>
 
@@ -370,17 +365,27 @@ export default function CaptureApplication() {
         </div>
       </section>
 
+      {/*
+        Income, asked the way the resident's own form asks it.
+
+        Five fixed amount boxes could hold five kinds of income and no more, and
+        a councillor standing at a door meets households with two grants and a
+        lodger routinely. The same component renders here as on the resident's
+        wizard, from the same server-side question definitions, so the two forms
+        cannot drift — and the one used by the person least able to check the
+        result is not the one that asks less.
+      */}
       <section className="panel">
-        <div className="panel-header">
-          <h2>Household income</h2>
-          <p className="muted">Monthly rands. Leave blank where there is none — a blank is not the same as zero.</p>
-        </div>
-        <div className="form-grid">
-          <label className="form-group"><span>Salary or wages</span><input type="number" min="0" step="0.01" value={form.salary} onChange={set('salary')} /></label>
-          <label className="form-group"><span>Old age pension</span><input type="number" min="0" step="0.01" value={form.oldAgePension} onChange={set('oldAgePension')} /></label>
-          <label className="form-group"><span>Disability pension</span><input type="number" min="0" step="0.01" value={form.disabilityPension} onChange={set('disabilityPension')} /></label>
-          <label className="form-group"><span>Business income</span><input type="number" min="0" step="0.01" value={form.businessIncome} onChange={set('businessIncome')} /></label>
-          <label className="form-group"><span>Rental income</span><input type="number" min="0" step="0.01" value={form.rentingIncome} onChange={set('rentingIncome')} /></label>
+        <div className="panel-body">
+          {application?.id ? (
+            <IncomeSources
+              applicationId={application.id}
+              people={form.peopleOnProperty}
+              onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
+            />
+          ) : (
+            <p className="muted">Save the applicant&rsquo;s details first, then their income can be captured.</p>
+          )}
         </div>
       </section>
 
