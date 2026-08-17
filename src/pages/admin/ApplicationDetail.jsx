@@ -66,11 +66,10 @@ export default function ApplicationDetail() {
       ['adults', 'Adults', 'number'], ['pensionersOver60', 'Pensioners over 60', 'number'],
       ['waterMeterNumber', 'Water meter', 'text'], ['electricityMeterNumber', 'Electricity meter', 'text'],
     ]},
-    { group: 'Income', fields: [
-      ['salary', 'Salary', 'money'], ['oldAgePension', 'Old age pension', 'money'],
-      ['disabilityPension', 'Disability pension', 'money'], ['businessIncome', 'Business income', 'money'],
-      ['rentingIncome', 'Renting income', 'money'],
-    ]},
+    // Income is not editable here. It is a list of sources with their own
+    // follow-up questions now, and the totals are derived from those rows —
+    // typing a figure into a box would put the record and its own arithmetic
+    // into disagreement.
     { group: 'General', fields: [
       ['ownsImmovableProperty', 'Owns immovable property', 'bool'],
       ['isFullTimeOccupant', 'Full-time occupant', 'bool'],
@@ -313,11 +312,27 @@ export default function ApplicationDetail() {
         </div>
         <div className="form-row">
           <Field label="ID number">{app.idNumber || '—'}</Field>
+          {/*
+            The badge now says when, and against which number.
+
+            It used to read from a boolean any client could PATCH, so it was
+            reporting a value the applicant supplied about themselves. It is
+            written by the server at submission from the account, and frozen —
+            an applicant who changes their number afterwards does not change
+            what this application says about the moment it was submitted.
+          */}
           <Field label="Cell number">
-            {app.cellNumber || '—'}{' '}
+            {app.cellVerifiedNumber || app.cellNumber || '—'}{' '}
             {app.cellVerified ? (
-              <span className="badge badge-approved" style={{ marginLeft: '.35rem' }}>Verified</span>
-            ) : null}
+              <span className="badge badge-approved" style={{ marginLeft: '.35rem' }}>
+                Verified
+                {app.cellVerifiedAt
+                  ? ` ${new Date(app.cellVerifiedAt).toLocaleDateString('en-ZA')}`
+                  : ''}
+              </span>
+            ) : (
+              <span className="badge badge-pending" style={{ marginLeft: '.35rem' }}>Not verified</span>
+            )}
           </Field>
         </div>
         <Field label="Residential address">{app.residentialAddress || '—'}</Field>
