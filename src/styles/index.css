@@ -2623,6 +2623,24 @@ select, .toolbar-select { min-height: 38px; }
   color: var(--warning);
 }
 
+/* One person carried more than one stage of this case.
+ *
+ * Given more weight than the returned-to line above. A file going round twice is
+ * ordinary; the separation of duties being set aside is the thing an audit comes
+ * looking for, and it must be impossible to skim past. */
+.trail-override {
+  display: flex; align-items: flex-start; gap: .4rem;
+  margin: .5rem 0 0;
+  padding: .45rem .65rem;
+  font-size: .8125rem;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-line);
+  border-radius: 4px;
+}
+
+.trail-override svg { flex: none; margin-top: .15rem; }
+
 /* The reason, set apart so it reads as the officer's own words rather than as
  * more interface text. */
 .trail-why {

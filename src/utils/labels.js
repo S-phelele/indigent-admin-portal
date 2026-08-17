@@ -14,6 +14,7 @@
 
 export const ROLE = {
   APPLICANT: 'Applicant',
+  SUPERUSER: 'Super Administrator',
   ADMIN: 'Administrator',
   COUNCILLOR: 'Ward Councillor',
   CAPTURE_OFFICER: 'Capture Officer',

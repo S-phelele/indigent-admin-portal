@@ -102,6 +102,26 @@ export default function ApprovalTrail({ trail = [], signatures = [], title = 'Ho
                   </p>
                 ) : null}
 
+                {/*
+                  Separation of duties was set aside for this step.
+
+                  Only an administrator or a superuser can reach this state, and
+                  for them the exemption is the whole of the control — so it is
+                  stated plainly rather than left to be inferred from two
+                  identical names further apart in the list. Somebody reviewing a
+                  case must be able to see that one person carried more than one
+                  stage of it without having to work it out.
+                */}
+                {step.isOverride ? (
+                  <p className="trail-override">
+                    <Icon name="alert-triangle" size={13} />
+                    <span>
+                      <strong>Separation of duties overridden.</strong>
+                      {step.overrideReason ? ` ${step.overrideReason}.` : ''}
+                    </span>
+                  </p>
+                ) : null}
+
                 {/* The reason. Rendered as given, because this is the part that
                     has to stand up if the decision is ever questioned. */}
                 {step.why ? (

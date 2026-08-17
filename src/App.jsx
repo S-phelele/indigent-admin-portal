@@ -39,6 +39,16 @@ const FIELD_ROLES = ['COUNCILLOR', 'CAPTURE_OFFICER'];
 const APPROVER_ROLES = ['VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 /**
+ * Roles that reach the administrative screens.
+ *
+ * SUPERUSER is here rather than being handled inside RoleRoute, so that every
+ * route naming ADMIN also admits it. Left out, a superuser is bounced from each
+ * guarded route back to "/" — signed in, apparently fine, and unable to open
+ * anything, which is a confusing way to discover a missing string.
+ */
+const ADMIN_ROLES = ['ADMIN', 'SUPERUSER'];
+
+/**
  * Any signed-in staff member.
  *
  * Also the gate for a password that was issued and sent by SMS: until it is
@@ -67,8 +77,8 @@ function RoleRoute({ roles, children }) {
   return children;
 }
 
-const AdminRoute = ({ children }) => <RoleRoute roles={['ADMIN']}>{children}</RoleRoute>;
-const ApproverRoute = ({ children }) => <RoleRoute roles={['ADMIN', ...APPROVER_ROLES]}>{children}</RoleRoute>;
+const AdminRoute = ({ children }) => <RoleRoute roles={ADMIN_ROLES}>{children}</RoleRoute>;
+const ApproverRoute = ({ children }) => <RoleRoute roles={[...ADMIN_ROLES, ...APPROVER_ROLES]}>{children}</RoleRoute>;
 
 /**
  * "/" means something different to each role: a review queue for an
@@ -110,7 +120,7 @@ export default function App() {
       <Route path="/applicants/:id" element={<AdminRoute><ApplicantDetail /></AdminRoute>} />
       <Route path="/application-stats" element={<AdminRoute><ApplicationStats /></AdminRoute>} />
       <Route path="/analytics" element={<AdminRoute><Analytics /></AdminRoute>} />
-      <Route path="/renewals" element={<RoleRoute roles={['ADMIN', 'ASSESSMENT_OFFICER', 'SUPERVISOR']}><Renewals /></RoleRoute>} />
+      <Route path="/renewals" element={<RoleRoute roles={[...ADMIN_ROLES, 'ASSESSMENT_OFFICER', 'SUPERVISOR']}><Renewals /></RoleRoute>} />
       <Route path="/sla" element={<AdminRoute><SlaMonitor /></AdminRoute>} />
       <Route path="/staff" element={<AdminRoute><Staff /></AdminRoute>} />
       <Route path="/sms" element={<AdminRoute><SmsOutbox /></AdminRoute>} />

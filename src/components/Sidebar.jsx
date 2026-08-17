@@ -16,12 +16,20 @@ import Icon from './ui/Icon';
  * The server enforces the same boundary. This list decides what is offered, not
  * what is permitted.
  */
-const ADMIN = ['ADMIN'];
-const FIELD = ['COUNCILLOR', 'CAPTURE_OFFICER'];
-const VERIFIER = ['VERIFICATION_OFFICER'];
-const ASSESSOR = ['ASSESSMENT_OFFICER'];
-const SUPERVISOR = ['SUPERVISOR'];
-const STAFF = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
+/**
+ * A superuser belongs to every section.
+ *
+ * Written into each list rather than special-cased inside the filter, so a
+ * section added later cannot forget it. The failure mode otherwise is a role
+ * documented as doing everything that silently cannot see one screen, with
+ * nothing on the page to say why.
+ */
+const ADMIN = ['ADMIN', 'SUPERUSER'];
+const FIELD = ['COUNCILLOR', 'CAPTURE_OFFICER', 'SUPERUSER'];
+const VERIFIER = ['VERIFICATION_OFFICER', 'SUPERUSER'];
+const ASSESSOR = ['ASSESSMENT_OFFICER', 'SUPERUSER'];
+const SUPERVISOR = ['SUPERVISOR', 'SUPERUSER'];
+const STAFF = ['ADMIN', 'SUPERUSER', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 const SECTIONS = [
   {
@@ -100,6 +108,7 @@ const SECTIONS = [
 ];
 
 const ROLE_LABELS = {
+  SUPERUSER: 'Super Administrator',
   ADMIN: 'Administrator',
   COUNCILLOR: 'Ward Councillor',
   CAPTURE_OFFICER: 'Capture Officer',
