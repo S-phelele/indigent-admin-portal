@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # No test suite exists in this repo yet, so the build itself is the check:
+    # it catches broken imports, JSX syntax errors, and anything that would
+    # otherwise only surface when someone happens to run `npm run build`
+    # locally before noticing.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
