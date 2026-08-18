@@ -12,17 +12,26 @@ export default function ApplicationStats() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [wards, setWards] = useState([]);
+  const [ward, setWard] = useState('');
 
   useEffect(() => {
-    api.get('/admin/stats/applications')
+    api.get('/export/report-options')
+      .then((res) => setWards(res.data.data?.wards || []))
+      .catch(() => setWards([]));
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get('/admin/stats/applications', { params: ward ? { ward } : {} })
       .then((res) => setStats(res.data.data))
       .catch((err) => setError(loadErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [ward]);
 
   const handleExport = async (type) => {
     try {
-      const res = await api.get('/admin/export/applications');
+      const res = await api.get('/admin/export/applications', { params: ward ? { ward } : {} });
       const data = res.data.data || [];
       if (!data.length) {
         toast.warning('Nothing to export', 'There are no applications to include.');
@@ -50,7 +59,15 @@ export default function ApplicationStats() {
     <AdminLayout title="Application Stats">
       <LoadError message={error} />
       <div className="toolbar" style={{ marginBottom: '1.25rem' }}>
-        <div />
+        <select
+          value={ward}
+          onChange={(e) => setWard(e.target.value)}
+          className="toolbar-select"
+          aria-label="Filter by ward"
+        >
+          <option value="">All wards</option>
+          {wards.map((w) => <option key={w} value={w}>{w}</option>)}
+        </select>
         <div className="toolbar-actions">
           <button type="button" className="btn btn-outline btn-sm" onClick={() => handleExport('excel')}>
             <Icon name="download" size={14} /> Export CSV

@@ -48,7 +48,6 @@ const SECTIONS = [
       { to: '/', label: 'Overview', icon: 'dashboard', end: true },
       { to: '/applications', label: 'Applications', icon: 'applications' },
       { to: '/applicants', label: 'Applicants', icon: 'users' },
-      { to: '/capture', label: 'Register a household', icon: 'userPlus' },
     ],
   },
   {
