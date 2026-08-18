@@ -16,37 +16,51 @@ import { friendlyError } from '../../utils/apiError';
 /**
  * Capturing a resident's application on their behalf.
  *
- * Uses exactly the same endpoints and the same validation as the resident's own
- * wizard — a field capture is not held to a lower standard, and the reviewer
- * must be able to trust both equally.
+ * Uses exactly the same endpoints, the same fields and the same validation as
+ * the resident's own wizard — a field capture is not held to a lower standard,
+ * and the reviewer must be able to trust both equally. It follows the same five
+ * steps for the same reason the resident's form does: tenure and category
+ * decide which documents get asked for, and the consent declarations are legal
+ * requirements, not paperwork — none of that can be a step a councillor's
+ * capture skips.
  *
- * Two differences from the resident-facing form, both deliberate:
- *
- *  - Everything is on one page. The resident's wizard is paced across four steps
- *    because they are working alone and may come back tomorrow. A councillor is
- *    standing at a gate and needs to see what is left, not discover it.
- *  - Saving is explicit and per section, so a lost signal costs one section
- *    rather than a whole household's answers.
+ * One difference from the resident-facing form: saving happens on "Next" and
+ * from the header button, not silently, so a lost signal at the door costs one
+ * section rather than a whole household's answers.
  */
 
+const STEPS = [
+  { num: 1, label: 'Applicant' },
+  { num: 2, label: 'Property' },
+  { num: 3, label: 'Income' },
+  { num: 4, label: 'General' },
+  { num: 5, label: 'Documents' },
+];
+
 const empty = {
-  surname: '', fullName: '', idNumber: '', cellNumber: '', maritalStatus: '',
+  title: '', surname: '', fullName: '', idNumber: '', cellNumber: '', maritalStatus: '',
   residentialAddress: '', postalAddress: '',
+  tenure: '', applicantCategory: 'STANDARD',
+  municipalAccountNumber: '', eskomAccountNumber: '', wardNumber: '',
   peopleOnProperty: '', childrenUnder18: '', adults: '', pensionersOver60: '',
   waterMeterNumber: '', electricityMeterNumber: '',
   ownsImmovableProperty: '', isFullTimeOccupant: '', incomeBelowThreshold: '',
   hasMunicipalArrears: '', hasArrearsArrangement: '',
+  ownsOtherProperty: '', otherPropertyDetails: '', incomeExclusions: '',
   addressLatitude: '', addressLongitude: '', addressFormatted: '', addressSource: '', addressAccuracyM: '',
   // The Washington Group Short Set, identical to the applicant's own form so a
   // captured application carries the same data as one somebody filled in.
   difficultySeeing: '', difficultyHearing: '', difficultyWalking: '',
   difficultyRemembering: '', difficultySelfCare: '', difficultyCommunicating: '',
+  // Legally load-bearing, so always sent — including a withdrawn "yes" — never
+  // left for the client to omit silently.
+  consentSiteVisit: false, consentDataMatching: false, declarationTruthful: false,
 };
 
 const STRINGS = [
-  'surname', 'fullName', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
-  'postalAddress',
-  'waterMeterNumber', 'electricityMeterNumber',
+  'title', 'surname', 'fullName', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
+  'postalAddress', 'tenure', 'applicantCategory', 'municipalAccountNumber', 'eskomAccountNumber', 'wardNumber',
+  'waterMeterNumber', 'electricityMeterNumber', 'otherPropertyDetails', 'incomeExclusions',
   'difficultySeeing', 'difficultyHearing', 'difficultyWalking',
   'difficultyRemembering', 'difficultySelfCare', 'difficultyCommunicating',
 ];
@@ -72,17 +86,21 @@ function initialsOf(fullName) {
 // Income is captured as rows against /applications/:id/income and its totals
 // are derived there. Nothing about money is sent from this form any more.
 const MONEY = [];
-const BOOLS = ['ownsImmovableProperty', 'isFullTimeOccupant', 'incomeBelowThreshold', 'hasMunicipalArrears', 'hasArrearsArrangement'];
+const BOOLS = ['ownsImmovableProperty', 'isFullTimeOccupant', 'incomeBelowThreshold', 'hasMunicipalArrears', 'hasArrearsArrangement', 'ownsOtherProperty'];
 
 const num = (v) => (v === '' || v === null || v === undefined ? undefined : (Number.isFinite(Number(v)) ? Number(v) : undefined));
 const bool = (v) => (v === 'Yes' ? true : v === 'No' ? false : undefined);
 
-function buildPayload(form) {
-  const payload = {};
+function buildPayload(form, nextStep) {
+  const payload = { currentStep: nextStep };
   STRINGS.forEach((k) => { if (form[k] !== '' && form[k] != null) payload[k] = form[k]; });
   INTS.forEach((k) => { const n = num(form[k]); if (n !== undefined) payload[k] = Math.floor(n); });
   MONEY.forEach((k) => { const n = num(form[k]); if (n !== undefined) payload[k] = n; });
   BOOLS.forEach((k) => { const b = bool(form[k]); if (b !== undefined) payload[k] = b; });
+
+  ['consentSiteVisit', 'consentDataMatching', 'declarationTruthful'].forEach((k) => {
+    if (typeof form[k] === 'boolean') payload[k] = form[k];
+  });
 
   // Coordinates travel as a pair, or are cleared as a pair — half a coordinate
   // locates nothing, and the API rejects a lone value.
@@ -118,6 +136,7 @@ export default function CaptureApplication() {
 
   const [application, setApplication] = useState(null);
   const { progress, done: justUploaded, upload: sendFile, cancel } = useUpload();
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState(empty);
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -134,12 +153,18 @@ export default function CaptureApplication() {
       const app = res.data.data;
       setApplication(app);
       setDocuments(app.documents || []);
+      setStep(app.currentStep || 1);
       setForm((f) => {
         const next = { ...f };
         Object.keys(empty).forEach((k) => {
           const value = app[k];
           if (value === null || value === undefined) return;
           next[k] = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
+        });
+        // Booleans that are always sent (never "not yet answered") round-trip as
+        // real booleans rather than the Yes/No strings the radio questions use.
+        ['consentSiteVisit', 'consentDataMatching', 'declarationTruthful'].forEach((k) => {
+          next[k] = Boolean(app[k]);
         });
         return next;
       });
@@ -154,13 +179,12 @@ export default function CaptureApplication() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target?.value ?? e }));
 
-  const save = async () => {
+  const save = async (nextStep = step) => {
     setSaving(true);
     setError('');
     try {
-      const res = await api.patch(`/applications/${id}`, buildPayload(form));
+      const res = await api.patch(`/applications/${id}`, buildPayload(form, nextStep));
       setApplication(res.data.data);
-      toast.success('Saved.');
       return true;
     } catch (err) {
       const message = friendlyError(err, 'Could not save.');
@@ -170,6 +194,22 @@ export default function CaptureApplication() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const goNext = async () => {
+    const target = Math.min(5, step + 1);
+    if (!(await save(target))) return;
+    setStep(target);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goBack = () => {
+    setStep((s) => Math.max(1, s - 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const saveNow = async () => {
+    if (await save(step)) toast.success('Saved.');
   };
 
   /**
@@ -238,7 +278,7 @@ export default function CaptureApplication() {
 
   const submit = async () => {
     setConfirmSubmit(false);
-    if (!(await save())) return;
+    if (!(await save(5))) return;
     setSaving(true);
     try {
       const res = await api.post(`/fieldwork/applications/${id}/submit`);
@@ -312,199 +352,356 @@ export default function CaptureApplication() {
   return (
     <AdminLayout
       title={`Capturing for ${name}`}
-      description="Complete this with the resident present. Save each section as you go."
+      description="Complete this with the resident present. Each step is saved as you move to the next."
       breadcrumb={<span>Fieldwork / Capture</span>}
       actions={
-        <button type="button" className="btn btn-primary" onClick={save} disabled={saving}>
+        <button type="button" className="btn btn-primary" onClick={saveNow} disabled={saving}>
           <Icon name="check" size={16} /> {saving ? 'Saving…' : 'Save'}
         </button>
       }
     >
       {error ? <div className="alert alert-error" role="alert">{error}</div> : null}
 
-      <section className="panel">
-        <div className="panel-header"><h2>Applicant particulars</h2></div>
-        <div className="form-grid">
-          {/* Every given name, in one field. "First names" was filled in
-              inconsistently, and a household captured at a door is the one most
-              likely to end up with a letter addressed to the wrong name. */}
-          <label className="form-group">
-            <span>Full name</span>
-            <input value={form.fullName} onChange={set('fullName')} placeholder="All given names, as on the ID" />
-            {initialsOf(form.fullName) ? <small>Initials: {initialsOf(form.fullName)}</small> : null}
-          </label>
-          <label className="form-group"><span>Surname</span><input value={form.surname} onChange={set('surname')} /></label>
-          <label className="form-group">
-            <span>ID number</span>
-            <input value={form.idNumber} onChange={set('idNumber')} inputMode="numeric" maxLength={13} />
-            {/* Read back so a mistyped digit is caught at the door, not later. */}
-            <DerivedIdentity idNumber={form.idNumber} />
-          </label>
-          <label className="form-group"><span>Cell number</span><input value={form.cellNumber} onChange={set('cellNumber')} inputMode="tel" /></label>
-          <label className="form-group">
-            <span>Marital status</span>
-            <select value={form.maritalStatus} onChange={set('maritalStatus')}>
-              <option value="">Not stated</option>
-              {['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'SEPARATED'].map((v) => (
-                <option key={v} value={v}>{v.charAt(0) + v.slice(1).toLowerCase()}</option>
-              ))}
-            </select>
-          </label>
-          {/* Employment is not asked. It is derived from the income answers:
-              a salary means employed, a business means self-employed. Asking it
-              here as well would give the form two places to disagree. */}
-        </div>
-      </section>
+      <ol className="capture-steps" aria-label="Progress">
+        {STEPS.map((s) => (
+          <li
+            key={s.num}
+            className={`capture-step${step === s.num ? ' current' : ''}${step > s.num ? ' done' : ''}`}
+            onClick={() => { if (s.num < step) setStep(s.num); }}
+            style={s.num < step ? { cursor: 'pointer' } : undefined}
+          >
+            <span className="capture-step-num">{s.num}</span>
+            <span>{s.label}</span>
+          </li>
+        ))}
+      </ol>
 
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Where they live</h2>
-          <p className="muted">
-            You are at the property. Pinning it from this device is worth more than any address — many of these
-            dwellings have no street number at all.
-          </p>
-        </div>
-        <div className="form-grid">
-          <label className="form-group span-2">
-            <span>Residential address</span>
-            <textarea rows={2} value={form.residentialAddress} onChange={set('residentialAddress')} />
-          </label>
-
-          <div className="span-2">
-            <button type="button" className="btn btn-secondary btn-lg" onClick={useMyLocation} disabled={locating}>
-              <Icon name="mapPin" size={16} /> {locating ? 'Getting location…' : 'Pin this property from my phone'}
-            </button>
-          </div>
-
-          {form.addressLatitude && form.addressLongitude ? (
-            <div className="pin-card span-2">
-              <div>
-                <strong>Location pinned</strong>
-                <p className="field-hint">
-                  {Number(form.addressLatitude).toFixed(5)}, {Number(form.addressLongitude).toFixed(5)}
-                  {form.addressAccuracyM ? ` · accurate to about ${form.addressAccuracyM} m` : ''}
-                </p>
-                {form.addressAccuracyM && Number(form.addressAccuracyM) > 500 ? (
-                  <p className="field-hint is-warn">
-                    Low accuracy — this looks like a network fix rather than GPS. Try again outdoors.
-                  </p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setForm((f) => ({ ...f, addressLatitude: '', addressLongitude: '', addressAccuracyM: '', addressSource: '' }))}
-              >
-                Remove
-              </button>
+      {step === 1 && (
+        <>
+          <section className="panel">
+            <div className="panel-header"><h2>Applicant particulars</h2></div>
+            <div className="form-grid">
+              <label className="form-group">
+                <span>Title <em className="optional">optional</em></span>
+                <input value={form.title} onChange={set('title')} placeholder="Mr, Mrs, Dr…" maxLength={20} />
+              </label>
+              {/* Every given name, in one field. "First names" was filled in
+                  inconsistently, and a household captured at a door is the one most
+                  likely to end up with a letter addressed to the wrong name. */}
+              <label className="form-group">
+                <span>Full name</span>
+                <input value={form.fullName} onChange={set('fullName')} placeholder="All given names, as on the ID" />
+                {initialsOf(form.fullName) ? <small>Initials: {initialsOf(form.fullName)}</small> : null}
+              </label>
+              <label className="form-group"><span>Surname</span><input value={form.surname} onChange={set('surname')} /></label>
+              <label className="form-group">
+                <span>ID number</span>
+                <input value={form.idNumber} onChange={set('idNumber')} inputMode="numeric" maxLength={13} />
+                {/* Read back so a mistyped digit is caught at the door, not later. */}
+                <DerivedIdentity idNumber={form.idNumber} />
+              </label>
+              <label className="form-group"><span>Cell number</span><input value={form.cellNumber} onChange={set('cellNumber')} inputMode="tel" /></label>
+              <label className="form-group">
+                <span>Marital status</span>
+                <select value={form.maritalStatus} onChange={set('maritalStatus')}>
+                  <option value="">Not stated</option>
+                  {['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'SEPARATED'].map((v) => (
+                    <option key={v} value={v}>{v.charAt(0) + v.slice(1).toLowerCase()}</option>
+                  ))}
+                </select>
+              </label>
+              {/* Employment is not asked. It is derived from the income answers:
+                  a salary means employed, a business means self-employed. Asking it
+                  here as well would give the form two places to disagree. */}
             </div>
-          ) : null}
-        </div>
-      </section>
+          </section>
 
-      <section className="panel">
-        <div className="panel-header"><h2>The property and who lives there</h2></div>
-        <div className="form-grid">
-          <label className="form-group"><span>People on the property</span><input type="number" min="0" value={form.peopleOnProperty} onChange={set('peopleOnProperty')} /></label>
-          <label className="form-group"><span>Children under 18</span><input type="number" min="0" value={form.childrenUnder18} onChange={set('childrenUnder18')} /></label>
-          <label className="form-group"><span>Adults</span><input type="number" min="0" value={form.adults} onChange={set('adults')} /></label>
-          <label className="form-group"><span>Pensioners over 60</span><input type="number" min="0" value={form.pensionersOver60} onChange={set('pensionersOver60')} /></label>
-          <label className="form-group"><span>Water meter number</span><input value={form.waterMeterNumber} onChange={set('waterMeterNumber')} /></label>
-          <label className="form-group"><span>Electricity meter number</span><input value={form.electricityMeterNumber} onChange={set('electricityMeterNumber')} /></label>
-        </div>
-
-        {/*
-          Room to list the people the headcount claims.
-
-          This form had a "people on the property" box and nowhere to name them,
-          so a councillor could declare five and record one. Submission now
-          refuses a roll that does not match the count — income per person is
-          half the means test and is computed from the typed number — which
-          without this editor would make a household of more than one
-          unsubmittable from the door.
-        */}
-        {application?.id ? (
-          <HouseholdEditor
-            applicationId={application.id}
-            declaredPeople={form.peopleOnProperty}
-            onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
-          />
-        ) : (
-          <p className="muted">Save the resident&rsquo;s details first, then the rest of the household can be listed.</p>
-        )}
-      </section>
-
-      {/*
-        Income, asked the way the resident's own form asks it.
-
-        Five fixed amount boxes could hold five kinds of income and no more, and
-        a councillor standing at a door meets households with two grants and a
-        lodger routinely. The same component renders here as on the resident's
-        wizard, from the same server-side question definitions, so the two forms
-        cannot drift — and the one used by the person least able to check the
-        result is not the one that asks less.
-      */}
-      <section className="panel">
-        <div className="panel-body">
-          {application?.id ? (
-            <IncomeSources
-              applicationId={application.id}
-              people={form.peopleOnProperty}
-              onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
-            />
-          ) : (
-            <p className="muted">Save the applicant&rsquo;s details first, then their income can be captured.</p>
-          )}
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header"><h2>General</h2></div>
-        <div className="form-grid">
-          <YesNo label="Do they own immovable property?" value={form.ownsImmovableProperty} onChange={set('ownsImmovableProperty')} />
-          <YesNo label="Do they live here full time?" value={form.isFullTimeOccupant} onChange={set('isFullTimeOccupant')} />
-          <YesNo label="Is the household income below the threshold?" value={form.incomeBelowThreshold} onChange={set('incomeBelowThreshold')} />
-          <YesNo label="Are there municipal arrears?" value={form.hasMunicipalArrears} onChange={set('hasMunicipalArrears')} />
-          <YesNo label="Is there an arrangement for the arrears?" value={form.hasArrearsArrangement} onChange={set('hasArrearsArrangement')} />
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header">
-          <h2>Documents</h2>
-          <p className="muted">Photograph each one with the resident&rsquo;s permission.</p>
-        </div>
-
-        <ul className="doc-slots">{required.map((slot) => slotRow(slot))}</ul>
-
-        <div className={`doc-group${groupSatisfied ? ' satisfied' : ''}`}>
-          <div className="doc-group-head">
-            <Icon name={groupSatisfied ? 'check' : 'info'} size={16} />
-            <div>
-              <strong>Proof of income or proof of grant</strong>
-              <p className="field-hint">
-                Whichever one applies. A payslip, an employer&rsquo;s letter, or a SASSA grant letter — any one is
-                enough. Not both.
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Where they live</h2>
+              <p className="muted">
+                You are at the property. Pinning it from this device is worth more than any address — many of these
+                dwellings have no street number at all.
               </p>
             </div>
+            <div className="form-grid">
+              <label className="form-group span-2">
+                <span>Residential address</span>
+                <textarea rows={2} value={form.residentialAddress} onChange={set('residentialAddress')} />
+              </label>
+
+              <div className="span-2">
+                <button type="button" className="btn btn-secondary btn-lg" onClick={useMyLocation} disabled={locating}>
+                  <Icon name="mapPin" size={16} /> {locating ? 'Getting location…' : 'Pin this property from my phone'}
+                </button>
+              </div>
+
+              {form.addressLatitude && form.addressLongitude ? (
+                <div className="pin-card span-2">
+                  <div>
+                    <strong>Location pinned</strong>
+                    <p className="field-hint">
+                      {Number(form.addressLatitude).toFixed(5)}, {Number(form.addressLongitude).toFixed(5)}
+                      {form.addressAccuracyM ? ` · accurate to about ${form.addressAccuracyM} m` : ''}
+                    </p>
+                    {form.addressAccuracyM && Number(form.addressAccuracyM) > 500 ? (
+                      <p className="field-hint is-warn">
+                        Low accuracy — this looks like a network fix rather than GPS. Try again outdoors.
+                      </p>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setForm((f) => ({ ...f, addressLatitude: '', addressLongitude: '', addressAccuracyM: '', addressSource: '' }))}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : null}
+
+              <label className="form-group span-2">
+                <span>Postal address <em className="optional">optional, if different</em></span>
+                <textarea rows={2} value={form.postalAddress} onChange={set('postalAddress')} placeholder="Leave blank if the same as the residential address" />
+              </label>
+            </div>
+          </section>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-primary btn-lg" onClick={goNext} disabled={saving}>
+              {saving ? 'Saving…' : 'Next'}
+            </button>
           </div>
-          <ul className="doc-slots">{grouped.map((slot) => slotRow(slot))}</ul>
-        </div>
+        </>
+      )}
 
-        <details className="doc-optional">
-          <summary>Other documents, only if they apply ({optional.length})</summary>
-          <ul className="doc-slots">{optional.map((slot) => slotRow(slot))}</ul>
-        </details>
-      </section>
+      {step === 2 && (
+        <>
+          <section className="panel">
+            <div className="panel-header"><h2>The property</h2></div>
+            <div className="form-grid">
+              <label className="form-group">
+                <span>Own or rent?</span>
+                <select value={form.tenure} onChange={set('tenure')}>
+                  <option value="">Please choose</option>
+                  <option value="OWNER">Owns it</option>
+                  <option value="TENANT">Rents it</option>
+                  <option value="OCCUPIER">Lives here but neither owns nor rents (e.g. family land)</option>
+                </select>
+                <small>Decides which proof of the property gets asked for below.</small>
+              </label>
+              <label className="form-group">
+                <span>Does anything below describe this household?</span>
+                <select value={form.applicantCategory} onChange={set('applicantCategory')}>
+                  <option value="STANDARD">None of these</option>
+                  <option value="PENSIONER">Pensioner</option>
+                  <option value="DISABLED">Has a disability</option>
+                  <option value="DECEASED_ESTATE">Owner has died, dealing with the estate</option>
+                  <option value="CHILD_HEADED">Headed by a young person under 21</option>
+                </select>
+              </label>
+              <label className="form-group"><span>Municipal account number</span><input value={form.municipalAccountNumber} onChange={set('municipalAccountNumber')} /></label>
+              <label className="form-group"><span>Eskom account number <em className="optional">optional</em></span><input value={form.eskomAccountNumber} onChange={set('eskomAccountNumber')} /></label>
+              <label className="form-group"><span>Ward number <em className="optional">optional</em></span><input value={form.wardNumber} onChange={set('wardNumber')} placeholder="e.g. Ward 12" /></label>
+              <label className="form-group"><span>Water meter number</span><input value={form.waterMeterNumber} onChange={set('waterMeterNumber')} /></label>
+              <label className="form-group"><span>Electricity meter number</span><input value={form.electricityMeterNumber} onChange={set('electricityMeterNumber')} /></label>
+            </div>
+          </section>
 
-      <div className="capture-submit">
-        <button type="button" className="btn btn-primary btn-lg" onClick={() => setConfirmSubmit(true)} disabled={saving}>
-          <Icon name="check" size={18} /> Submit this application
-        </button>
-        <p className="field-hint">
-          The resident receives an SMS with their reference number as soon as you submit.
-        </p>
-      </div>
+          <section className="panel">
+            <div className="panel-header"><h2>Who lives here</h2></div>
+            <div className="form-grid">
+              <label className="form-group"><span>People on the property</span><input type="number" min="0" value={form.peopleOnProperty} onChange={set('peopleOnProperty')} /></label>
+              <label className="form-group"><span>Children under 18</span><input type="number" min="0" value={form.childrenUnder18} onChange={set('childrenUnder18')} /></label>
+              <label className="form-group"><span>Adults</span><input type="number" min="0" value={form.adults} onChange={set('adults')} /></label>
+              <label className="form-group"><span>Pensioners over 60</span><input type="number" min="0" value={form.pensionersOver60} onChange={set('pensionersOver60')} /></label>
+            </div>
+
+            {/*
+              Room to list the people the headcount claims.
+
+              This form had a "people on the property" box and nowhere to name them,
+              so a councillor could declare five and record one. Submission refuses a
+              roll that does not match the count — income per person is half the means
+              test and is computed from the typed number.
+            */}
+            <HouseholdEditor
+              applicationId={application.id}
+              declaredPeople={form.peopleOnProperty}
+              onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
+            />
+          </section>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-outline" onClick={goBack}>Back</button>
+            <button type="button" className="btn btn-primary btn-lg" onClick={goNext} disabled={saving}>
+              {saving ? 'Saving…' : 'Next'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 3 && (
+        <>
+          {/*
+            Income, asked the way the resident's own form asks it.
+
+            Five fixed amount boxes could hold five kinds of income and no more, and
+            a councillor standing at a door meets households with two grants and a
+            lodger routinely. The same component renders here as on the resident's
+            wizard, from the same server-side question definitions, so the two forms
+            cannot drift.
+          */}
+          <section className="panel">
+            <div className="panel-body">
+              <IncomeSources
+                applicationId={application.id}
+                people={form.peopleOnProperty}
+                onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
+              />
+            </div>
+          </section>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-outline" onClick={goBack}>Back</button>
+            <button type="button" className="btn btn-primary btn-lg" onClick={goNext} disabled={saving}>
+              {saving ? 'Saving…' : 'Next'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 4 && (
+        <>
+          <section className="panel">
+            <div className="panel-header"><h2>General</h2></div>
+            <div className="form-grid">
+              <YesNo label="Do they own immovable property?" value={form.ownsImmovableProperty} onChange={set('ownsImmovableProperty')} />
+              <YesNo label="Do they live here full time?" value={form.isFullTimeOccupant} onChange={set('isFullTimeOccupant')} />
+              <YesNo label="Is the household income below the threshold?" value={form.incomeBelowThreshold} onChange={set('incomeBelowThreshold')} />
+              <YesNo label="Are there municipal arrears?" value={form.hasMunicipalArrears} onChange={set('hasMunicipalArrears')} />
+              <YesNo label="Is there an arrangement for the arrears?" value={form.hasArrearsArrangement} onChange={set('hasArrearsArrangement')} />
+              <YesNo label="Do they own any other property anywhere in South Africa?" value={form.ownsOtherProperty} onChange={set('ownsOtherProperty')} />
+            </div>
+
+            {form.ownsOtherProperty === 'Yes' ? (
+              <label className="form-group">
+                <span>Where is it, and what is it?</span>
+                <textarea
+                  rows={2}
+                  value={form.otherPropertyDetails}
+                  onChange={set('otherPropertyDetails')}
+                  placeholder="e.g. An empty inherited plot in Lusikisiki, Eastern Cape"
+                />
+              </label>
+            ) : null}
+
+            <label className="form-group">
+              <span>Money coming in they think should not count <em className="optional">optional</em></span>
+              <textarea
+                rows={2}
+                value={form.incomeExclusions}
+                onChange={set('incomeExclusions')}
+                placeholder="e.g. Child support grant for two children, NSFAS allowance, money a relative sends some months"
+              />
+            </label>
+          </section>
+
+          <section className="panel">
+            <div className="panel-header"><h2>How they manage day to day</h2></div>
+            <FunctioningQuestions form={form} update={(field, value) => setForm((f) => ({ ...f, [field]: value }))} />
+          </section>
+
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Consent and declaration</h2>
+              <p className="muted">Read each of these to the resident. Their application cannot be reviewed without them.</p>
+            </div>
+
+            {[
+              {
+                key: 'consentSiteVisit',
+                label: 'They agree that a municipal officer may visit and inspect the property.',
+                hint: 'The municipality will try three times and send an SMS each time they cannot be reached.',
+              },
+              {
+                key: 'consentDataMatching',
+                label: 'They agree that the municipality may check their details with SARS, UIF, SASSA and credit bureaux.',
+                hint: 'Used only to confirm what has been declared, and only for this application.',
+              },
+              {
+                key: 'declarationTruthful',
+                label: 'They declare that everything in this application is true and complete.',
+                hint: 'They will sign this under oath on their affidavit. Giving false information is an offence.',
+              },
+            ].map((c) => (
+              <div className="form-group consent-check" key={c.key}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form[c.key])}
+                    onChange={(e) => setForm((f) => ({ ...f, [c.key]: e.target.checked }))}
+                  />
+                  <span>{c.label}</span>
+                </label>
+                <p className="field-hint">{c.hint}</p>
+              </div>
+            ))}
+          </section>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-outline" onClick={goBack}>Back</button>
+            <button type="button" className="btn btn-primary btn-lg" onClick={goNext} disabled={saving}>
+              {saving ? 'Saving…' : 'Next'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {step === 5 && (
+        <>
+          <section className="panel">
+            <div className="panel-header">
+              <h2>Documents</h2>
+              <p className="muted">Photograph each one with the resident&rsquo;s permission.</p>
+            </div>
+
+            <ul className="doc-slots">{required.map((slot) => slotRow(slot))}</ul>
+
+            <div className={`doc-group${groupSatisfied ? ' satisfied' : ''}`}>
+              <div className="doc-group-head">
+                <Icon name={groupSatisfied ? 'check' : 'info'} size={16} />
+                <div>
+                  <strong>Proof of income or proof of grant</strong>
+                  <p className="field-hint">
+                    Whichever one applies. A payslip, an employer&rsquo;s letter, or a SASSA grant letter — any one is
+                    enough. Not both.
+                  </p>
+                </div>
+              </div>
+              <ul className="doc-slots">{grouped.map((slot) => slotRow(slot))}</ul>
+            </div>
+
+            <details className="doc-optional">
+              <summary>Other documents, only if they apply ({optional.length})</summary>
+              <ul className="doc-slots">{optional.map((slot) => slotRow(slot))}</ul>
+            </details>
+          </section>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-outline" onClick={goBack}>Back</button>
+          </div>
+
+          <div className="capture-submit">
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => setConfirmSubmit(true)} disabled={saving}>
+              <Icon name="check" size={18} /> Submit this application
+            </button>
+            <p className="field-hint">
+              The resident receives an SMS with their reference number as soon as you submit.
+            </p>
+          </div>
+        </>
+      )}
 
       <ConfirmModal
         open={confirmSubmit}
