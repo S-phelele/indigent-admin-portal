@@ -161,6 +161,11 @@ export default function CaptureApplication() {
           if (value === null || value === undefined) return;
           next[k] = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
         });
+        // Registration at the door writes the resident's first name onto the
+        // legacy `names` column, not `fullName` — so a household just registered
+        // by this same councillor showed up here with a blank name field until
+        // this fallback, exactly the field the councillor had just typed in.
+        if (!app.fullName && app.names) next.fullName = app.names;
         // Booleans that are always sent (never "not yet answered") round-trip as
         // real booleans rather than the Yes/No strings the radio questions use.
         ['consentSiteVisit', 'consentDataMatching', 'declarationTruthful'].forEach((k) => {
