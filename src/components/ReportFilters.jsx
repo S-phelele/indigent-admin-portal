@@ -17,7 +17,7 @@ import Icon from './ui/Icon';
  */
 
 const EMPTY = {
-  ward: '', status: '', stage: '', disability: '', category: '', tenure: '',
+  ward: '', status: '', stage: '', disability: '', category: '', tenure: '', employmentStatus: '',
   householdSize: '', incomeType: '', channel: '', renewalStatus: '',
   dateField: 'submitted', from: '', to: '',
 };
@@ -98,6 +98,7 @@ export default function ReportFilters({ value, onChange, onApply }) {
 
             <Select label="Category" field="category" items={options.categories} allLabel="Any category" />
             <Select label="Tenure" field="tenure" items={options.tenures} allLabel="Any tenure" />
+            <Select label="Employment" field="employmentStatus" items={options.employmentStatuses} allLabel="Any employment status" />
             <Select label="Household size" field="householdSize" items={options.householdSizes} allLabel="Any size" />
 
             {/*
