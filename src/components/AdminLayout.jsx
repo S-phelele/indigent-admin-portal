@@ -102,6 +102,8 @@ export default function AdminLayout({ children, title, description, actions, bre
           ) : null}
           {children}
         </main>
+
+        <footer className="app-shell-footer">Powered by Malcam ICT Solutions</footer>
       </div>
 
       <ConfirmModal

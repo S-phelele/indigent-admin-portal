@@ -89,7 +89,7 @@ export function logForDeveloper(error) {
   const req = error?.config;
   console.groupCollapsed(
     `%c[api] ${req?.method?.toUpperCase() || '???'} ${req?.url || 'unknown'} → ${error?.response?.status || 'no response'}`,
-    'color:#c81e26;font-weight:600'
+    'color:#2e9e44;font-weight:600'
   );
   if (req?.data) console.log('request body :', safeParse(req.data));
   if (error?.response?.data) console.log('response     :', error.response.data);

@@ -181,6 +181,7 @@ export default function PrintApplication() {
             above were made under the Electronic Communications and Transactions Act 25 of 2002 and are recorded with
             the signatory&rsquo;s name, the time of signing and the address they signed from.
           </p>
+          <p className="print-foot-powered">Powered by Malcam ICT Solutions</p>
         </footer>
       </article>
     </div>

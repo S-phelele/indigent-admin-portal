@@ -172,6 +172,7 @@ export default function StatisticsReport() {
             Produced from the indigent register on {dateZA(report.generatedAt)}. Figures cover every application on
             the register unless a table states otherwise.
           </p>
+          <p className="print-foot-powered">Powered by Malcam ICT Solutions</p>
         </footer>
       </article>
     </div>
