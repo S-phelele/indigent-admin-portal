@@ -32,6 +32,7 @@ const FIELD_LABELS = {
   employerName: 'Who do you work for?',
   businessName: 'What is the business called?',
   businessType: 'What does the business do?',
+  registrationNumber: 'Business registration number',
   otherDetail: 'What is this income?',
 };
 
@@ -40,6 +41,7 @@ const FIELD_PLACEHOLDERS = {
   employerName: 'Name of your employer',
   businessName: 'Name of the business',
   businessType: 'Spaza shop, hair salon, taxi…',
+  registrationNumber: 'From the CIPC registration certificate',
   otherDetail: 'Say where this money comes from',
 };
 
@@ -204,8 +206,13 @@ export default function IncomeSources({ applicationId, people, onChange, disable
           </div>
 
           {/* The follow-up questions this type asks, as the server defines them. */}
-          {(definition(draft.type)?.asks || []).map((field) => (
-            field === 'isRegistered' ? (
+          {(definition(draft.type)?.asks || []).map((field) => {
+            // Only a registered business has a number to give — asked right
+            // after that answer, not as a fixed part of the list, so it never
+            // appears before "registered" has actually been chosen.
+            if (field === 'registrationNumber' && draft.isRegistered !== true) return null;
+
+            return field === 'isRegistered' ? (
               <div className="form-group" key={field}>
                 <label htmlFor="income-registered">Is the business registered?</label>
                 <select
@@ -230,8 +237,8 @@ export default function IncomeSources({ applicationId, people, onChange, disable
                   placeholder={FIELD_PLACEHOLDERS[field] || ''}
                 />
               </div>
-            )
-          ))}
+            );
+          })}
 
           {draft.type ? (
             <div className="form-group">

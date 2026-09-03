@@ -38,9 +38,10 @@ const STEPS = [
 ];
 
 const empty = {
-  title: '', surname: '', fullName: '', idNumber: '', cellNumber: '', maritalStatus: '',
+  title: '', surname: '', fullName: '', idNumber: '', sex: '', cellNumber: '', maritalStatus: '',
   residentialAddress: '', postalAddress: '',
-  tenure: '', applicantCategory: 'STANDARD',
+  tenure: '', ownerFullName: '', ownerIdNumber: '', ownerRelationship: '', ownerDeceased: '',
+  applicantCategory: 'STANDARD',
   municipalAccountNumber: '', eskomAccountNumber: '', wardNumber: '',
   peopleOnProperty: '', childrenUnder18: '', adults: '', pensionersOver60: '',
   waterMeterNumber: '', electricityMeterNumber: '',
@@ -58,13 +59,21 @@ const empty = {
 };
 
 const STRINGS = [
-  'title', 'surname', 'fullName', 'idNumber', 'cellNumber', 'maritalStatus', 'residentialAddress',
-  'postalAddress', 'tenure', 'applicantCategory', 'municipalAccountNumber', 'eskomAccountNumber', 'wardNumber',
+  'title', 'surname', 'fullName', 'idNumber', 'sex', 'cellNumber', 'maritalStatus', 'residentialAddress',
+  'postalAddress', 'tenure', 'ownerFullName', 'ownerIdNumber', 'ownerRelationship',
+  'applicantCategory', 'municipalAccountNumber', 'eskomAccountNumber', 'wardNumber',
   'waterMeterNumber', 'electricityMeterNumber', 'otherPropertyDetails', 'incomeExclusions',
   'difficultySeeing', 'difficultyHearing', 'difficultyWalking',
   'difficultyRemembering', 'difficultySelfCare', 'difficultyCommunicating',
 ];
 const INTS = ['peopleOnProperty', 'childrenUnder18', 'adults', 'pensionersOver60'];
+
+/** The Sex enum value the ID number implies, or '' while it cannot be read. */
+function sexFromIdNumber(idNumber) {
+  const digits = String(idNumber || '').replace(/\D/g, '');
+  if (digits.length !== 13) return '';
+  return Number(digits.slice(6, 10)) < 5000 ? 'FEMALE' : 'MALE';
+}
 
 /**
  * Initials from whatever given names were typed.
@@ -86,7 +95,7 @@ function initialsOf(fullName) {
 // Income is captured as rows against /applications/:id/income and its totals
 // are derived there. Nothing about money is sent from this form any more.
 const MONEY = [];
-const BOOLS = ['ownsImmovableProperty', 'isFullTimeOccupant', 'incomeBelowThreshold', 'hasMunicipalArrears', 'hasArrearsArrangement', 'ownsOtherProperty'];
+const BOOLS = ['ownsImmovableProperty', 'isFullTimeOccupant', 'incomeBelowThreshold', 'hasMunicipalArrears', 'hasArrearsArrangement', 'ownsOtherProperty', 'ownerDeceased'];
 
 const num = (v) => (v === '' || v === null || v === undefined ? undefined : (Number.isFinite(Number(v)) ? Number(v) : undefined));
 const bool = (v) => (v === 'Yes' ? true : v === 'No' ? false : undefined);
@@ -405,6 +414,17 @@ export default function CaptureApplication() {
                 {/* Read back so a mistyped digit is caught at the door, not later. */}
                 <DerivedIdentity idNumber={form.idNumber} />
               </label>
+              <label className="form-group">
+                <span>Sex</span>
+                {/* Filled in from the ID number, and changeable — the sequence
+                    digits record sex as registered at birth, which is the right
+                    default and wrong for some people. */}
+                <select value={form.sex || sexFromIdNumber(form.idNumber)} onChange={set('sex')}>
+                  <option value="">Select...</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="MALE">Male</option>
+                </select>
+              </label>
               <label className="form-group"><span>Cell number</span><input value={form.cellNumber} onChange={set('cellNumber')} inputMode="tel" /></label>
               <label className="form-group">
                 <span>Marital status</span>
@@ -495,6 +515,33 @@ export default function CaptureApplication() {
                 </select>
                 <small>Decides which proof of the property gets asked for below.</small>
               </label>
+
+              {form.tenure === 'TENANT' || form.tenure === 'OCCUPIER' ? (
+                <>
+                  <label className="form-group">
+                    <span>Property owner's full name</span>
+                    <input value={form.ownerFullName} onChange={set('ownerFullName')} />
+                    <small>Since the resident is not the owner, we need to know who is.</small>
+                  </label>
+                  <label className="form-group">
+                    <span>Property owner's ID number <em className="optional">optional</em></span>
+                    <input value={form.ownerIdNumber} onChange={set('ownerIdNumber')} inputMode="numeric" maxLength={13} />
+                  </label>
+                  <label className="form-group">
+                    <span>Resident's relationship to the owner <em className="optional">optional</em></span>
+                    <input value={form.ownerRelationship} onChange={set('ownerRelationship')} placeholder="e.g. Landlord, mother, employer" />
+                  </label>
+                  <label className="form-group">
+                    <span>Has the owner passed away? <em className="optional">optional</em></span>
+                    <select value={form.ownerDeceased} onChange={set('ownerDeceased')}>
+                      <option value="">Not sure / prefer not to say</option>
+                      <option value="No">No, they are alive</option>
+                      <option value="Yes">Yes, they have passed away</option>
+                    </select>
+                  </label>
+                </>
+              ) : null}
+
               <label className="form-group">
                 <span>Does anything below describe this household?</span>
                 <select value={form.applicantCategory} onChange={set('applicantCategory')}>
@@ -533,7 +580,22 @@ export default function CaptureApplication() {
             <HouseholdEditor
               applicationId={application.id}
               declaredPeople={form.peopleOnProperty}
-              onChange={(updated) => { if (updated) setApplication((a) => ({ ...a, ...updated })); }}
+              onChange={(updated) => {
+                if (!updated) return;
+                setApplication((a) => ({ ...a, ...updated }));
+                // The headcount boxes above are typed at the door, but the true
+                // count comes from the roll being built here — without this the
+                // boxes kept showing whatever was last typed while the record
+                // underneath had already moved on, and a councillor had no way
+                // to tell the two had drifted apart.
+                setForm((f) => ({
+                  ...f,
+                  peopleOnProperty: updated.peopleOnProperty ?? f.peopleOnProperty,
+                  childrenUnder18: updated.childrenUnder18 ?? f.childrenUnder18,
+                  adults: updated.adults ?? f.adults,
+                  pensionersOver60: updated.pensionersOver60 ?? f.pensionersOver60,
+                }));
+              }}
             />
           </section>
 

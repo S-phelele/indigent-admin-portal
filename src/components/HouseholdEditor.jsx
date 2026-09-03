@@ -3,6 +3,7 @@ import Icon from './ui/Icon';
 import { useToast } from './ui/Toast';
 import api from '../services/api';
 import { friendlyError } from '../utils/apiError';
+import { deriveFromId } from '../utils/idNumber';
 
 /**
  * Everyone living on the property.
@@ -57,6 +58,23 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
   useEffect(() => { load(); }, [load]);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  /**
+   * Age is in the ID number, the same as it is on the applicant's own details —
+   * so once a valid one is typed, asking for age separately would only invite a
+   * second answer to contradict the first. The server derives it from the ID
+   * again on save regardless of what is sent, so this is purely so whoever is
+   * filling in the form is not left to work the age out and type it by hand.
+   */
+  const derivedFromId = deriveFromId(form.idNumber);
+
+  const setIdNumber = (e) => {
+    const value = e.target.value;
+    setForm((f) => {
+      const derived = deriveFromId(value);
+      return { ...f, idNumber: value, age: derived ? String(derived.age) : f.age };
+    });
+  };
 
   const reset = () => { setForm(blank); setEditingId(null); setShowForm(false); setError(''); };
 
@@ -216,15 +234,30 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
             </div>
             <div className="form-group">
               <label htmlFor="hh-age">Age</label>
-              <input id="hh-age" type="number" min="0" max="120" value={form.age} onChange={set('age')} />
+              <input
+                id="hh-age"
+                type="number"
+                min="0"
+                max="120"
+                value={form.age}
+                onChange={set('age')}
+                readOnly={Boolean(derivedFromId)}
+              />
+              <p className="field-hint">
+                {derivedFromId
+                  ? `Filled in from the ID number below — ${derivedFromId.age} years old.`
+                  : 'Filled in automatically if you enter their ID number below.'}
+              </p>
             </div>
           </div>
 
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="hh-id">ID number <span className="optional-tag">optional</span></label>
-              <input id="hh-id" value={form.idNumber} onChange={set('idNumber')} inputMode="numeric" maxLength={13} />
-              <p className="field-hint">Only if they have one. Leave blank if not.</p>
+              <input id="hh-id" value={form.idNumber} onChange={setIdNumber} inputMode="numeric" maxLength={13} />
+              <p className="field-hint">
+                Only if they have one. Leave blank if not — their age above will not be touched.
+              </p>
             </div>
             <div className="form-group">
               <label htmlFor="hh-income">Their own income</label>
