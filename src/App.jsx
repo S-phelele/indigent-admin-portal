@@ -15,6 +15,7 @@ import MyCaptures from './pages/council/MyCaptures';
 // The approval chain — verification, assessment, sign-off
 import ApprovalQueue from './pages/approver/ApprovalQueue';
 import ApprovalDetail from './pages/approver/ApprovalDetail';
+import ApprovalHistory from './pages/approver/ApprovalHistory';
 import VerificationQueue from './pages/approver/VerificationQueue';
 import VerificationDetail from './pages/approver/VerificationDetail';
 
@@ -109,6 +110,7 @@ export default function App() {
       {/* The approval chain */}
       <Route path="/approvals" element={<ApproverRoute><ApprovalQueue /></ApproverRoute>} />
       <Route path="/approvals/:id" element={<ApproverRoute><ApprovalDetail /></ApproverRoute>} />
+      <Route path="/history" element={<ApproverRoute><ApprovalHistory /></ApproverRoute>} />
       <Route path="/verification" element={<ApproverRoute><VerificationQueue /></ApproverRoute>} />
       <Route path="/verification/:id" element={<ApproverRoute><VerificationDetail /></ApproverRoute>} />
       <Route path="/applications/:id/print" element={<ApproverRoute><PrintApplication /></ApproverRoute>} />

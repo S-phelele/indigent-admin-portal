@@ -64,6 +64,7 @@ const SECTIONS = [
     links: [
       { to: '/', label: 'My queue', icon: 'shield', end: true },
       { to: '/verification', label: 'Site visits and checks', icon: 'mapPin' },
+      { to: '/history', label: 'History', icon: 'clock' },
     ],
   },
   {
@@ -72,6 +73,7 @@ const SECTIONS = [
     links: [
       { to: '/', label: 'My queue', icon: 'shield', end: true },
       { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
+      { to: '/history', label: 'History', icon: 'clock' },
     ],
   },
   {
@@ -80,6 +82,7 @@ const SECTIONS = [
     links: [
       { to: '/', label: 'Awaiting my signature', icon: 'key', end: true },
       { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
+      { to: '/history', label: 'History', icon: 'clock' },
     ],
   },
   {
