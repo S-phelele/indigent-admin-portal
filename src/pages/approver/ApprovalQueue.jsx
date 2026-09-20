@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import Icon from '../../components/ui/Icon';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
@@ -15,19 +15,26 @@ import api from '../../services/api';
  * opens on whichever stage the signed-in officer works, so an assessment officer
  * sees assessment work without choosing anything, and an administrator can move
  * between stages to see where the register is congested.
+ *
+ * Superuser deep-links use ?stage=VERIFICATION|ASSESSMENT|SUPERVISOR_SIGNOFF
+ * so each sidebar entry opens the right queue directly.
  */
 
 const STAGES = [
-  { key: 'VERIFICATION', label: 'Verification', question: 'Is what the household declared true?' },
-  { key: 'ASSESSMENT', label: 'Assessment', question: 'Do they qualify, and can the budget carry it?' },
-  { key: 'SUPERVISOR_SIGNOFF', label: 'Sign-off', question: 'Is the file sound enough to sign?' },
+  { key: 'VERIFICATION', label: 'Verification queue', question: 'Is what the household declared true?' },
+  { key: 'ASSESSMENT', label: 'Assessment queue', question: 'Do they qualify, and can the budget carry it?' },
+  { key: 'SUPERVISOR_SIGNOFF', label: 'Awaiting signature', question: 'Is the file sound enough to sign?' },
 ];
+
+const STAGE_KEYS = STAGES.map((s) => s.key);
 
 const money = (n) => (n == null ? '—' : `R ${Number(n).toLocaleString('en-ZA', { maximumFractionDigits: 0 })}`);
 
 export default function ApprovalQueue() {
   const { user } = useAuth();
-  const [stage, setStage] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stageFromUrl = STAGE_KEYS.includes(searchParams.get('stage')) ? searchParams.get('stage') : null;
+  const [stage, setStage] = useState(stageFromUrl);
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [search, setSearch] = useState('');
@@ -36,6 +43,14 @@ export default function ApprovalQueue() {
   const [firstLoad, setFirstLoad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  // Keep local stage in sync when the sidebar navigates with ?stage=
+  useEffect(() => {
+    if (stageFromUrl && stageFromUrl !== stage) {
+      setStage(stageFromUrl);
+      setPage(1);
+    }
+  }, [stageFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -47,20 +62,31 @@ export default function ApprovalQueue() {
       setRows(res.data.data);
       setMeta(res.data);
       // The server decides the default stage from the caller's role, so adopt it.
-      if (!stage) setStage(res.data.stage);
+      if (!stage && res.data.stage) {
+        setStage(res.data.stage);
+        if (user?.role === 'SUPERUSER' || user?.role === 'ADMIN') {
+          setSearchParams({ stage: res.data.stage }, { replace: true });
+        }
+      }
     } catch (err) {
       setError(loadErrorMessage(err));
     } finally {
       setFirstLoad(false);
       setRefreshing(false);
     }
-  }, [stage, query, page]);
+  }, [stage, query, page, user?.role, setSearchParams]);
 
   useEffect(() => { load(); }, [load]);
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
   const current = STAGES.find((s) => s.key === (stage || meta?.stage));
   const totalPages = meta?.pagination?.totalPages || 1;
+
+  const selectStage = (key) => {
+    setStage(key);
+    setPage(1);
+    setSearchParams({ stage: key });
+  };
 
   return (
     <AdminLayout
@@ -83,7 +109,7 @@ export default function ApprovalQueue() {
                 key={s.key}
                 type="button"
                 className={`stat-card stat-card-button${(stage || meta?.stage) === s.key ? ' active' : ''}`}
-                onClick={() => { setStage(s.key); setPage(1); }}
+                onClick={() => selectStage(s.key)}
               >
                 <div>
                   <span className="stat-value">{meta?.counts?.[s.key] ?? 0}</span>

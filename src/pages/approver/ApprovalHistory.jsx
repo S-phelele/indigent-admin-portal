@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../../components/AdminLayout';
 import Icon from '../../components/ui/Icon';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
@@ -9,12 +9,9 @@ import api from '../../services/api';
 /**
  * Everything the signed-in officer has personally decided.
  *
- * The queue only ever shows what is still waiting — the moment a case is
- * decided it leaves that screen, and there was nowhere to look back at it. A
- * verification officer, an assessment officer and a supervisor all end up
- * asking the same question — "what have I actually done" — so this is one
- * page reading one endpoint, the same way the queue itself is one page for
- * all three stages.
+ * Scoped to actorId on the server. Optional ?stage= filters the list so
+ * Superuser sidebar entries (Verification history / Assessed history /
+ * Signed history) each show only that stage.
  */
 
 const OUTCOME_LABELS = {
@@ -33,9 +30,31 @@ const OUTCOME_TONE = {
   RETURNED: 'badge-pending',
 };
 
+const STAGE_TITLES = {
+  VERIFICATION: {
+    title: 'Verification history',
+    description: 'Applications you have verified, most recent first.',
+  },
+  ASSESSMENT: {
+    title: 'Assessed history',
+    description: 'Applications you have assessed, most recent first.',
+  },
+  SUPERVISOR_SIGNOFF: {
+    title: 'Signed history',
+    description: 'Applications you have signed off, most recent first.',
+  },
+};
+
 const dateZA = (d) => (d ? new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 
 export default function ApprovalHistory() {
+  const [searchParams] = useSearchParams();
+  const stageFilter = searchParams.get('stage') || '';
+  const heading = STAGE_TITLES[stageFilter] || {
+    title: 'History',
+    description: 'Every case you have personally decided, most recent first.',
+  };
+
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState(null);
   const [page, setPage] = useState(1);
@@ -43,11 +62,21 @@ export default function ApprovalHistory() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setPage(1);
+  }, [stageFilter]);
+
   const load = useCallback(async () => {
     setRefreshing(true);
     setError('');
     try {
-      const res = await api.get('/approvals/history', { params: { page, pageSize: 20 } });
+      const res = await api.get('/approvals/history', {
+        params: {
+          page,
+          pageSize: 20,
+          ...(stageFilter ? { stage: stageFilter } : {}),
+        },
+      });
       setRows(res.data.data);
       setMeta(res.data);
     } catch (err) {
@@ -56,7 +85,7 @@ export default function ApprovalHistory() {
       setFirstLoad(false);
       setRefreshing(false);
     }
-  }, [page]);
+  }, [page, stageFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -64,8 +93,8 @@ export default function ApprovalHistory() {
 
   return (
     <AdminLayout
-      title="History"
-      description="Every case you have personally decided, most recent first."
+      title={heading.title}
+      description={heading.description}
       actions={
         <button type="button" className="btn btn-outline btn-sm" onClick={load} disabled={refreshing}>
           <Icon name="refresh" size={15} /> {refreshing ? 'Refreshing…' : 'Refresh'}

@@ -7,28 +7,15 @@ import Icon from './ui/Icon';
  * Navigation is grouped so destinations read as jobs rather than as one
  * undifferentiated list.
  *
- * Each section carries the roles it belongs to. A ward councillor sees three
- * links — register a household, their own captures, their profile — because
- * everything else in this portal is either work they may not do or somebody
- * else's households. Hiding it is not only tidier: a councillor holding a phone
- * at a gate should not have to find the one button that matters.
- *
- * The server enforces the same boundary. This list decides what is offered, not
- * what is permitted.
+ * SUPERUSER gets its own section layout (below) so Verification / Assessment /
+ * Sign-off are not three copies of "My queue" pointing at the same home route.
  */
-/**
- * A superuser belongs to every section.
- *
- * Written into each list rather than special-cased inside the filter, so a
- * section added later cannot forget it. The failure mode otherwise is a role
- * documented as doing everything that silently cannot see one screen, with
- * nothing on the page to say why.
- */
-const ADMIN = ['ADMIN', 'SUPERUSER'];
-const FIELD = ['COUNCILLOR', 'CAPTURE_OFFICER', 'SUPERUSER'];
-const VERIFIER = ['VERIFICATION_OFFICER', 'SUPERUSER'];
-const ASSESSOR = ['ASSESSMENT_OFFICER', 'SUPERUSER'];
-const SUPERVISOR = ['SUPERVISOR', 'SUPERUSER'];
+
+const ADMIN = ['ADMIN'];
+const FIELD = ['COUNCILLOR', 'CAPTURE_OFFICER'];
+const VERIFIER = ['VERIFICATION_OFFICER'];
+const ASSESSOR = ['ASSESSMENT_OFFICER'];
+const SUPERVISOR = ['SUPERVISOR'];
 const STAFF = ['ADMIN', 'SUPERUSER', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 const SECTIONS = [
@@ -109,6 +96,77 @@ const SECTIONS = [
   },
 ];
 
+/**
+ * Superuser navigation — one clear path through the chain.
+ *
+ * Queues open the shared approvals board locked to a stage. Histories open the
+ * personal history list filtered to that stage (API scopes to actorId = me).
+ */
+const SUPERUSER_SECTIONS = [
+  {
+    label: 'Fieldwork',
+    links: [
+      { to: '/capture', label: 'Register a household', icon: 'userPlus' },
+      { to: '/captures', label: 'My captures', icon: 'applications' },
+    ],
+  },
+  {
+    label: 'Casework',
+    links: [
+      { to: '/', label: 'Overview', icon: 'dashboard', end: true },
+      { to: '/applications', label: 'Applications', icon: 'applications' },
+      { to: '/applicants', label: 'Applicants', icon: 'users' },
+    ],
+  },
+  {
+    label: 'Verification',
+    links: [
+      { to: '/approvals?stage=VERIFICATION', label: 'Verification queue', icon: 'shield' },
+      { to: '/verification', label: 'Site visits and checks', icon: 'mapPin' },
+      { to: '/history?stage=VERIFICATION', label: 'Verification history', icon: 'clock' },
+    ],
+  },
+  {
+    label: 'Assessment',
+    links: [
+      { to: '/approvals?stage=ASSESSMENT', label: 'Assessment queue', icon: 'shield' },
+      { to: '/history?stage=ASSESSMENT', label: 'Assessed history', icon: 'clock' },
+    ],
+  },
+  {
+    label: 'Sign-off',
+    links: [
+      { to: '/approvals?stage=SUPERVISOR_SIGNOFF', label: 'Awaiting my signature', icon: 'key' },
+      { to: '/history?stage=SUPERVISOR_SIGNOFF', label: 'Signed history', icon: 'clock' },
+    ],
+  },
+  {
+    label: 'Reporting',
+    links: [
+      { to: '/application-stats', label: 'Application Stats', icon: 'chart' },
+      { to: '/analytics', label: 'Analytics', icon: 'trending' },
+    ],
+  },
+  {
+    label: 'Oversight',
+    links: [
+      { to: '/renewals', label: 'Re-verification', icon: 'refresh' },
+      { to: '/sla', label: 'SLA Monitor', icon: 'clock' },
+      { to: '/staff', label: 'Staff', icon: 'userCheck' },
+      { to: '/sms', label: 'SMS Outbox', icon: 'message' },
+      { to: '/audit-logs', label: 'Audit Logs', icon: 'audit' },
+      { to: '/privacy', label: 'Privacy', icon: 'key' },
+    ],
+  },
+  {
+    label: 'Account',
+    links: [
+      { to: '/notifications', label: 'Notifications', icon: 'bell' },
+      { to: '/profile', label: 'My profile', icon: 'user' },
+    ],
+  },
+];
+
 const ROLE_LABELS = {
   SUPERUSER: 'Super Administrator',
   ADMIN: 'Administrator',
@@ -125,28 +183,40 @@ const initials = (user) => {
   return (user?.email || 'A').slice(0, 2).toUpperCase();
 };
 
+/** Match path + optional query so stage-specific links highlight correctly. */
+function linkIsActive(pathname, search, to, end) {
+  const [path, query] = to.split('?');
+  if (end) {
+    if (pathname !== path) return false;
+  } else if (path === '/') {
+    if (pathname !== '/') return false;
+  } else if (pathname !== path && !pathname.startsWith(`${path}/`)) {
+    return false;
+  }
+  if (!query) {
+    // Plain /approvals or /history should not stay active when a stage query is set.
+    if ((path === '/approvals' || path === '/history') && new URLSearchParams(search).get('stage')) {
+      return false;
+    }
+    return pathname === path || pathname.startsWith(`${path}/`);
+  }
+  const want = new URLSearchParams(query);
+  const have = new URLSearchParams(search);
+  for (const [k, v] of want.entries()) {
+    if (have.get(k) !== v) return false;
+  }
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
 export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts = {} }) {
   const { user } = useAuth();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navRef = useRef(null);
 
-  const sections = SECTIONS.filter((s) => s.roles.includes(user?.role));
+  const sections = user?.role === 'SUPERUSER'
+    ? SUPERUSER_SECTIONS
+    : SECTIONS.filter((s) => s.roles.includes(user?.role));
 
-  /**
-   * Bring the current page into view only when it genuinely is not.
-   *
-   * This used to call `scrollIntoView`, which was wrong in a way that is easy to
-   * miss: it scrolls the whole chain of scrollable ancestors, not just the list
-   * it was aimed at. Clicking a link therefore nudged the page as well as the
-   * nav, so the destination appeared to move out from under the pointer.
-   *
-   * Setting `scrollTop` on the nav itself cannot touch anything else. And the
-   * adjustment is skipped whenever the active link is already inside the visible
-   * band — which is the case for every ordinary click — so the normal experience
-   * is that nothing moves at all. The highlight and the brand-coloured bar are
-   * what show where you are; scrolling is only for the case where the link is
-   * genuinely off-screen, such as landing on the Audit Log from a deep link.
-   */
   useEffect(() => {
     const nav = navRef.current;
     const active = nav?.querySelector('.sidebar-link.active');
@@ -156,9 +226,6 @@ export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts
     const bottom = top + active.offsetHeight;
     const viewTop = nav.scrollTop;
     const viewBottom = viewTop + nav.clientHeight;
-
-    // A margin so a link flush against an edge is treated as needing the nudge
-    // rather than being technically visible but half under a fade.
     const margin = 8;
     if (top >= viewTop + margin && bottom <= viewBottom - margin) return;
 
@@ -167,7 +234,7 @@ export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts
       top: Math.max(0, top - nav.clientHeight / 2 + active.offsetHeight / 2),
       behavior: reduced ? 'auto' : 'smooth',
     });
-  }, [pathname, collapsed]);
+  }, [pathname, search, collapsed]);
 
   return (
     <aside className={`admin-sidebar${open ? ' open' : ''}`} aria-label="Main navigation">
@@ -192,7 +259,9 @@ export default function Sidebar({ open, collapsed, onNavigate, onSignOut, counts
                 end={link.end}
                 onClick={onNavigate}
                 title={collapsed ? link.label : undefined}
-                className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+                className={() =>
+                  `sidebar-link${linkIsActive(pathname, search, link.to, link.end) ? ' active' : ''}`
+                }
               >
                 <span className="sidebar-icon">
                   <Icon name={link.icon} size={17} />

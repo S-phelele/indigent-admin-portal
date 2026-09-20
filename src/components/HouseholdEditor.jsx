@@ -4,6 +4,7 @@ import { useToast } from './ui/Toast';
 import api from '../services/api';
 import { friendlyError } from '../utils/apiError';
 import { deriveFromId } from '../utils/idNumber';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Everyone living on the property.
@@ -40,11 +41,16 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
+
+  const base = ['SUPERUSER', 'ADMIN'].includes(user?.role)
+  ? `/admin/applications/${applicationId}/household`
+  : `/applications/${applicationId}/household`;
 
   const load = useCallback(async () => {
     if (!applicationId) { setLoading(false); return; }
     try {
-      const res = await api.get(`/applications/${applicationId}/household`);
+      const res = await api.get(base);
       setMembers(res.data.data);
       setSummary(res.data.summary);
     } catch {
@@ -53,7 +59,7 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
     } finally {
       setLoading(false);
     }
-  }, [applicationId]);
+  }, [applicationId, base]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -86,8 +92,8 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
     setError('');
     try {
       const res = editingId
-        ? await api.patch(`/applications/${applicationId}/household/${editingId}`, form)
-        : await api.post(`/applications/${applicationId}/household`, form);
+        ? await api.patch(`${base}/${editingId}`, form)
+        : await api.post(base, form);
 
       toast.success(res.data.message);
       reset();
@@ -103,7 +109,7 @@ export default function HouseholdEditor({ applicationId, onChange, readOnly = fa
 
   const remove = async (member) => {
     try {
-      const res = await api.delete(`/applications/${applicationId}/household/${member.id}`);
+      const res = await api.delete(`${base}/${member.id}`);
       toast.success(res.data.message);
       await load();
       if (res.data.application) onChange?.(res.data.application);

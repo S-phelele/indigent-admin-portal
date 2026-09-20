@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { friendlyError } from '../utils/apiError';
 import Icon from './ui/Icon';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Where the household's money comes from.
@@ -52,9 +53,14 @@ export default function IncomeSources({ applicationId, people, onChange, disable
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const { user } = useAuth();
 
   // The row being added or edited. Null when the form is closed.
   const [draft, setDraft] = useState(null);
+
+  const base = ['SUPERUSER', 'ADMIN'].includes(user?.role)
+  ? `/admin/applications/${applicationId}/income`
+  : `/applications/${applicationId}/income`;
 
   useEffect(() => {
     api.get('/applications/income-types')
@@ -65,7 +71,7 @@ export default function IncomeSources({ applicationId, people, onChange, disable
   const load = () => {
     if (!applicationId) { setLoading(false); return; }
     setLoading(true);
-    api.get(`/applications/${applicationId}/income`)
+    api.get(base)
       .then((res) => {
         setSources(res.data.data);
         setDeclaredNone(Boolean(res.data.declaredNoIncome));
@@ -74,7 +80,7 @@ export default function IncomeSources({ applicationId, people, onChange, disable
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [applicationId]);
+  useEffect(load, [applicationId, base]);
 
   const definition = (value) => types.find((t) => t.value === value) || null;
 
@@ -90,8 +96,8 @@ export default function IncomeSources({ applicationId, people, onChange, disable
     try {
       const payload = { ...draft };
       const res = draft.id
-        ? await api.patch(`/applications/${applicationId}/income/${draft.id}`, payload)
-        : await api.post(`/applications/${applicationId}/income`, payload);
+        ? await api.patch(`${base}/${draft.id}`, payload)
+        : await api.post(base, payload);
       setDraft(null);
       setDeclaredNone(false);
       load();
@@ -108,7 +114,7 @@ export default function IncomeSources({ applicationId, people, onChange, disable
   const remove = async (id) => {
     setBusy(true);
     try {
-      const res = await api.delete(`/applications/${applicationId}/income/${id}`);
+      const res = await api.delete(`${base}/${id}`);
       load();
       announce(res.data.application);
     } catch (err) {
@@ -122,7 +128,7 @@ export default function IncomeSources({ applicationId, people, onChange, disable
     setBusy(true);
     setError('');
     try {
-      const res = await api.post(`/applications/${applicationId}/income/none`, { declared });
+      const res = await api.post(`${base}/none`, { declared });
       setDeclaredNone(declared);
       load();
       announce(res.data.application);
@@ -178,15 +184,15 @@ export default function IncomeSources({ applicationId, people, onChange, disable
       {sources.length > 0 && (
         <div className="income-total">
           <div className="income-total-row">
-            <span>Total household income</span>
+            <span>Total Applicant income</span>
             <strong>{money(total)}</strong>
           </div>
-          {headcount > 0 && (
+          {/* {headcount > 0 && (
             <div className="income-total-row muted">
               <span>Per person across {headcount} {headcount === 1 ? 'person' : 'people'}</span>
               <span>{money(total / headcount)}</span>
             </div>
-          )}
+          )} */}
         </div>
       )}
 

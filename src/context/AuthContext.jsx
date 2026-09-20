@@ -16,7 +16,7 @@ const AuthContext = createContext(null);
  * Residents are turned away: this portal has no resident-facing screens, so
  * letting an APPLICANT in would only strand them somewhere useless.
  */
-const STAFF_ROLES = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
+const STAFF_ROLES = ['SUPERUSER', 'ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -120,11 +120,11 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
   const isCouncillor = user?.role === 'COUNCILLOR';
-  const canCapture = ['ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER'].includes(user?.role);
-  const canVerify = ['ADMIN', 'VERIFICATION_OFFICER'].includes(user?.role);
-  const canApprove = ['ADMIN', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'].includes(user?.role);
+  const canCapture = ['SUPERUSER', 'ADMIN', 'COUNCILLOR', 'CAPTURE_OFFICER'].includes(user?.role);
+  const canVerify = ['SUPERUSER', 'ADMIN', 'VERIFICATION_OFFICER'].includes(user?.role);
+  const canApprove = ['SUPERUSER','ADMIN', 'VERIFICATION_OFFICER', 'ASSESSMENT_OFFICER', 'SUPERVISOR'].includes(user?.role);
 
   return (
     <AuthContext.Provider

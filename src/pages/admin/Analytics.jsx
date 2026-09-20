@@ -74,13 +74,60 @@ export default function Analytics() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     setError('');
     api.get('/admin/analytics/full', { params: { days: period } })
-      .then((res) => setData(res.data.data))
-      .catch((err) => setError(loadErrorMessage(err)))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (!cancelled) setData(res.data?.data || null);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(loadErrorMessage(err));
+          // Keep previous data only if we already had some; otherwise stay null.
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [period]);
+
+  const downloadExcel = async () => {
+    try {
+      // arraybuffer avoids empty .xls files some browsers produce from text/xml blobs.
+      const res = await api.get('/export/statistics.xls', { responseType: 'arraybuffer' });
+      const buf = res.data;
+      const head = String.fromCharCode(...new Uint8Array(buf.slice(0, 20)));
+      if (head.trimStart().startsWith('{')) {
+        const text = new TextDecoder().decode(buf);
+        let message = 'Could not download the Excel report.';
+        try { message = JSON.parse(text)?.message || message; } catch { /* keep */ }
+        setError(message);
+        return;
+      }
+      const blob = new Blob([buf], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      if (blob.size < 64) {
+        setError('The Excel file came back empty. Try again or open the Full report page.');
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `indigent-statistics-${new Date().toISOString().slice(0, 10)}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 401) {
+        setError('Your session expired. Please sign in again, then download the Excel file.');
+        return;
+      }
+      setError(loadErrorMessage(err) || 'Could not download the Excel report. Please try again.');
+    }
+  };
 
   if (loading && !data) {
     return (
@@ -90,19 +137,31 @@ export default function Analytics() {
     );
   }
 
-  if (error && !data) {
-    return <AdminLayout title="Analytics"><LoadError message={error} /></AdminLayout>;
+  if ((error && !data) || !data) {
+    return <AdminLayout title="Analytics"><LoadError message={error || 'Analytics could not be loaded.'} /></AdminLayout>;
   }
 
-  const { headline, turnaround, queue, demographics, households, income, channels, geography, funnel, councillors, documents } = data;
+  const {
+    headline = {},
+    turnaround = {},
+    queue = {},
+    demographics = { gender: [], ageBands: [] },
+    households = {},
+    income = {},
+    channels = {},
+    geography = {},
+    funnel = {},
+    councillors = [],
+    documents = [],
+  } = data;
 
-  const genderSlices = demographics.gender
+  const genderSlices = (demographics.gender || [])
     .filter((g) => g.count > 0)
     .map((g, i) => ({ ...g, colour: [COLOURS.registrations, COLOURS.applications, COLOURS.neutral][i] }));
 
-  const ageSlices = demographics.ageBands.map((b, i) => ({ ...b, colour: AGE_COLOURS[i % AGE_COLOURS.length] }));
+  const ageSlices = (demographics.ageBands || []).map((b, i) => ({ ...b, colour: AGE_COLOURS[i % AGE_COLOURS.length] }));
 
-  const activeCouncillors = councillors.filter((c) => c.captured > 0);
+  const activeCouncillors = (councillors || []).filter((c) => c.captured > 0);
 
   return (
     <AdminLayout
@@ -128,9 +187,9 @@ export default function Analytics() {
             paper. A direct link rather than a fetch, so the browser handles the
             download and a large file never sits in memory.
           */}
-          <a className="btn btn-outline btn-sm" href="/api/export/statistics.xls">
+          <button type="button" className="btn btn-outline btn-sm" onClick={downloadExcel}>
             <Icon name="download" size={15} /> Excel
-          </a>
+          </button>
           <Link className="btn btn-outline btn-sm" to="/statistics-report">
             <Icon name="file" size={15} /> Full report
           </Link>

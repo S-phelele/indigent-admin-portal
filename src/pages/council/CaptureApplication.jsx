@@ -8,6 +8,7 @@ import IncomeSources from '../../components/IncomeSources';
 import HouseholdEditor from '../../components/HouseholdEditor';
 import FunctioningQuestions from '../../components/FunctioningQuestions';
 import { useToast } from '../../components/ui/Toast';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import useUpload from '../../hooks/useUpload';
 import UploadProgress from '../../components/ui/UploadProgress';
@@ -142,6 +143,7 @@ export default function CaptureApplication() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
 
   const [application, setApplication] = useState(null);
   const { progress, done: justUploaded, upload: sendFile, cancel } = useUpload();
@@ -156,13 +158,27 @@ export default function CaptureApplication() {
   const [locating, setLocating] = useState(false);
   const fileInputs = useRef({});
 
-  const load = async () => {
+  /**
+   * @param {{ preserveStep?: boolean }} [opts]
+   * preserveStep — after document upload, stay on step 5 (do not jump to currentStep).
+   */
+  const load = async ({ preserveStep = false } = {}) => {
     try {
-      const res = await api.get(`/applications/${id}`);
+      /**
+       * Superuser/admin load through the admin case file, which always allows
+       * them to open any application. Councillors and capture officers use the
+       * ordinary applications route, which only returns drafts they captured.
+       */
+      const path = ['SUPERUSER', 'ADMIN'].includes(user?.role)
+        ? `/admin/applications/${id}`
+        : `/applications/${id}`;
+      const res = await api.get(path);
       const app = res.data.data;
       setApplication(app);
       setDocuments(app.documents || []);
-      setStep(app.currentStep || 1);
+      if (!preserveStep) {
+        setStep(app.currentStep || 1);
+      }
       setForm((f) => {
         const next = { ...f };
         Object.keys(empty).forEach((k) => {
@@ -189,7 +205,11 @@ export default function CaptureApplication() {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  useEffect(() => {
+    if (!user) return;
+    load();
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [id, user?.role]);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target?.value ?? e }));
 
@@ -197,7 +217,11 @@ export default function CaptureApplication() {
     setSaving(true);
     setError('');
     try {
-      const res = await api.patch(`/applications/${id}`, buildPayload(form, nextStep));
+      // Superuser/admin use the admin write path; councillors use the field path.
+      const path = ['SUPERUSER', 'ADMIN'].includes(user?.role)
+        ? `/admin/applications/${id}`
+        : `/applications/${id}`;
+      const res = await api.patch(path, buildPayload(form, nextStep));
       setApplication(res.data.data);
       return true;
     } catch (err) {
@@ -284,7 +308,9 @@ export default function CaptureApplication() {
       // Cancelling is a choice, not a failure — nothing is said about it.
       if (res?.cancelled) return;
       toast.success(`${slot.name} captured.`);
-      await load();
+      // Stay on the documents step — reloading the application must not jump
+      // the wizard back to step 1 after every photograph.
+      await load({ preserveStep: true });
     } catch (err) {
       toast.error(err.response?.data?.message || `Could not upload ${slot.name}.`);
     }

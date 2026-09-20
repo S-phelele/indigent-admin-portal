@@ -37,11 +37,29 @@ export default function ReportFilters({ value, onChange, onApply }) {
 
   useEffect(() => {
     api.get('/export/report-options')
-      .then((res) => setOptions(res.data.data))
-      .catch(() => setOptions(null));
+      .then((res) => setOptions(res.data?.data || null))
+      .catch(() => setOptions({ _failed: true }));
   }, []);
 
-  if (!options) return null;
+  // Hosted deploys sometimes fail /export/report-options (auth or API URL).
+  // Show a clear message instead of rendering nothing (looks like a blank page).
+  if (!options) {
+    return (
+      <div className="report-filters">
+        <p className="field-hint">Loading filters…</p>
+      </div>
+    );
+  }
+  if (options._failed) {
+    return (
+      <div className="report-filters">
+        <p className="field-hint is-warn">
+          Filters could not be loaded. You can still read the unfiltered report.
+          Sign in again if your session expired, and check the API URL on the hosted site.
+        </p>
+      </div>
+    );
+  }
 
   const set = (key) => (e) => onChange({ ...value, [key]: e.target.value });
 

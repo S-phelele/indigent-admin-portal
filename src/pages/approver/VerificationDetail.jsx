@@ -179,15 +179,20 @@ export default function VerificationDetail() {
 
   const requestInformation = async (e) => {
     e.preventDefault();
+    if (!requestMessage.trim()) {
+      toast.error('Please give a reason for sending this application back.');
+      return;
+    }
     setBusy(true);
     try {
       const res = await api.post(`/verification/applications/${id}/request-information`, { message: requestMessage });
-      toast.success(res.data.message);
+      toast.success(res.data.message || 'Application sent back to the applicant.');
       setShowRequest(false);
       setRequestMessage('');
-      await load();
+      // Case leaves the verification queue (returned to DRAFT) — go back to the list.
+      navigate('/verification');
     } catch (err) {
-      toast.error(friendlyError(err, 'Could not send the request.'));
+      toast.error(friendlyError(err, 'Could not send the application back.'));
     } finally {
       setBusy(false);
     }
@@ -219,7 +224,7 @@ export default function VerificationDetail() {
       actions={
         <>
           <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowRequest(true)}>
-            <Icon name="mail" size={15} /> Ask the applicant
+            <Icon name="mail" size={15} /> Send back for correction
           </button>
           <button
             type="button"
@@ -302,20 +307,42 @@ export default function VerificationDetail() {
         <dl className="fact-grid">
           <Fact label="ID number" value={data.idNumber} />
           <Fact label="Cell" value={data.cellNumber} />
-          <Fact label="Ward" value={data.wardNumber} />
-          <Fact label="Category" value={data.applicantCategory?.replace(/_/g, ' ').toLowerCase()} />
-          <Fact label="Tenure" value={data.tenure?.toLowerCase()} warn={data.tenure === 'TENANT'} />
-          <Fact label="Municipal account" value={data.municipalAccountNumber} />
-          <Fact label="Eskom account" value={data.eskomAccountNumber} />
-          <Fact label="People on property" value={data.peopleOnProperty} />
-          <Fact label="Declared income" value={zar(data.totalHouseholdIncome)} />
-          <Fact label="Per person" value={zar(data.totalIncomePerPerson)} />
+          <Fact label="Ward" value={data.wardNumber || '—'} />
+          <Fact label="Category" value={data.applicantCategory?.replace(/_/g, ' ').toLowerCase() || '—'} />
+          <Fact
+            label="Ownership / tenure"
+            value={
+              data.tenure === 'OWNER' ? 'Owns it'
+                : data.tenure === 'TENANT' ? 'Rents it'
+                  : data.tenure === 'OCCUPIER' ? 'Occupier (neither owns nor rents)'
+                    : (data.tenure || '—')
+            }
+            warn={data.tenure === 'TENANT' || data.tenure === 'OCCUPIER'}
+          />
+          {(data.tenure === 'TENANT' || data.tenure === 'OCCUPIER') ? (
+            <>
+              <Fact label="Property owner" value={data.ownerFullName || '—'} />
+              <Fact label="Owner ID number" value={data.ownerIdNumber || '—'} />
+              <Fact label="Relationship to owner" value={data.ownerRelationship || '—'} />
+              <Fact
+                label="Owner deceased?"
+                value={data.ownerDeceased === true || data.ownerDeceased === 'Yes' ? 'Yes' : data.ownerDeceased === false || data.ownerDeceased === 'No' ? 'No' : '—'}
+              />
+            </>
+          ) : null}
+          <Fact label="Municipal account" value={data.municipalAccountNumber || '—'} />
+          <Fact label="Eskom account" value={data.eskomAccountNumber || '—'} />
+          <Fact label="Water meter" value={data.waterMeterNumber || '—'} />
+          <Fact label="Electricity meter" value={data.electricityMeterNumber || '—'} />
+          <Fact label="Residential address" value={data.residentialAddress || data.addressFormatted || '—'} />
+          <Fact label="People on property" value={data.peopleOnProperty ?? '—'} />
+          <Fact label="Declared household income" value={zar(data.totalHouseholdIncome)} />
           <Fact
             label="Other property"
             value={data.ownsOtherProperty ? (data.otherPropertyDetails || 'Yes') : 'None declared'}
             warn={data.ownsOtherProperty}
           />
-          <Fact label="Income excluded" value={data.incomeExclusions} />
+          <Fact label="Income excluded" value={data.incomeExclusions || '—'} />
         </dl>
 
         <div className="consent-row">
@@ -477,6 +504,86 @@ export default function VerificationDetail() {
         </div>
       </section>
 
+      {/* --- Supporting documents ----------------------------------------- */}
+      <section className="panel">
+        <div className="panel-header">
+          <h2>Supporting documents</h2>
+          <p className="field-hint">
+            Open each file the applicant or capturer supplied. Verification is about checking these against the
+            declaration — not only recording external system checks.
+          </p>
+        </div>
+        {!data.documents?.length ? (
+          <p className="field-hint">No document slots on this application.</p>
+        ) : (
+          <div className="doc-list">
+            {data.documents.map((d) => (
+              <div className="doc-row" key={d.id}>
+                <div className="doc-row-info">
+                  <span className="doc-row-icon"><Icon name="file" size={16} /></span>
+                  <div>
+                    <div className="doc-row-title">{d.name}</div>
+                    <div className="doc-row-meta">
+                      <span className={`badge ${d.status === 'Uploaded' ? 'badge-approved' : d.status === 'Rejected' ? 'badge-declined' : 'badge-draft'}`}>
+                        {d.status || 'Missing'}
+                      </span>
+                      {d.importance === 'REQUIRED' ? <span>Required</span> : null}
+                      {d.requirementGroup ? <span>Group: {d.requirementGroup}</span> : null}
+                    </div>
+                  </div>
+                </div>
+                <div className="doc-row-actions">
+                  {d.status === 'Uploaded' ? (
+                    <>
+                      <a
+                        className="btn btn-sm btn-outline"
+                        href={`/api/documents/file/${d.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={async (e) => {
+                          // Authenticated view — plain href would omit the JWT.
+                          e.preventDefault();
+                          try {
+                            const res = await api.get(`/documents/file/${d.id}`, { responseType: 'blob' });
+                            const url = URL.createObjectURL(res.data);
+                            window.open(url, '_blank', 'noopener');
+                          } catch {
+                            toast.error('Could not open that document.');
+                          }
+                        }}
+                      >
+                        <Icon name="file" size={14} /> View
+                      </a>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(`/documents/file/${d.id}?download=1`, { responseType: 'blob' });
+                            const url = URL.createObjectURL(res.data);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = d.fileName || d.name || 'document';
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          } catch {
+                            toast.error('Could not download that document.');
+                          }
+                        }}
+                      >
+                        <Icon name="download" size={14} /> Download
+                      </button>
+                    </>
+                  ) : (
+                    <span className="field-hint">Not uploaded</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* ------------------------------------------------------------------ */}
       <Modal open={showCheck} title="Record an external check" onClose={() => setShowCheck(false)}>
         <form onSubmit={addCheck} className="form-grid">
@@ -607,21 +714,27 @@ export default function VerificationDetail() {
         </form>
       </Modal>
 
-      <Modal open={showRequest} title="Ask the applicant for more" onClose={() => setShowRequest(false)}>
+      <Modal open={showRequest} title="Send application back for correction" onClose={() => setShowRequest(false)}>
         <form onSubmit={requestInformation} className="form-grid">
-          <label className="form-group span-2"><span>What do you need?</span>
+          <p className="field-hint span-2">
+            Use this when the information or documents do not match what was declared. The applicant is notified
+            and must correct the application before verification can finish.
+          </p>
+          <label className="form-group span-2"><span>Reason — what is wrong or missing?</span>
             <textarea
               rows={4}
               value={requestMessage}
               onChange={(e) => setRequestMessage(e.target.value)}
-              placeholder="Plain language — this is shown to the applicant exactly as written."
+              placeholder="e.g. The ID copy is unreadable; please upload a clearer photo. Household income does not match the bank statement provided."
               required
             />
-            <small>They receive this as a notification and are told by SMS to sign in.</small>
+            <small>Required. Sent to the applicant as a notification and they are alerted by SMS.</small>
           </label>
           <div className="form-actions span-2">
             <button type="button" className="btn btn-ghost" onClick={() => setShowRequest(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={busy}>Send</button>
+            <button type="submit" className="btn btn-primary" disabled={busy || !requestMessage.trim()}>
+              Send back with reason
+            </button>
           </div>
         </form>
       </Modal>

@@ -219,8 +219,8 @@ export default function ApprovalDetail() {
         <div className="panel-header">
           <h2>Means test</h2>
           <p className="field-hint">
-            Computed live from the household as it stands now, using the highest of what was declared, what was
-            verified, and what the household members earn.
+            Household total is tested against the municipal threshold. The table below lists each person&rsquo;s
+            <strong> own stated income</strong> — not the household total divided by headcount.
           </p>
         </div>
 
@@ -232,15 +232,52 @@ export default function ApprovalDetail() {
                   : 'Not enough information'}
             </span>
             <span className="means-detail">
-              {money(mt.assessedIncome)} across {mt.people} {mt.people === 1 ? 'person' : 'people'}
+              Household total {money(mt.assessedIncome)} · threshold {money(mt.threshold)}
             </span>
           </div>
           <dl className="stat-pairs">
-            <div><dt>Declared</dt><dd>{money(mt.declaredIncome)}</dd></div>
-            <div><dt>Verified</dt><dd>{mt.verifiedIncome == null ? '—' : money(mt.verifiedIncome)}</dd></div>
-            <div><dt>Per person</dt><dd>{money(mt.perPerson)}</dd></div>
+            <div><dt>Declared household total</dt><dd>{money(mt.declaredIncome)}</dd></div>
+            <div><dt>Verified (external)</dt><dd>{mt.verifiedIncome == null ? '—' : money(mt.verifiedIncome)}</dd></div>
+            <div><dt>Members&rsquo; own income total</dt><dd>{money(mt.memberIncome)}</dd></div>
             <div><dt>Threshold</dt><dd>{money(mt.threshold)}</dd></div>
           </dl>
+        </div>
+
+        {/*
+          Income by person — each line is the amount that person was recorded as
+          earning, not the household total divided by headcount.
+        */}
+        <div className="table-card table-scroll" style={{ marginTop: '1rem' }}>
+          <table className="table-compact">
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th>Role</th>
+                <th>Own monthly income</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data.incomeSources || []).map((s) => (
+                <tr key={s.id}>
+                  <td><strong>Applicant / household sources</strong></td>
+                  <td>{s.type?.replace(/_/g, ' ') || s.label || 'Income source'}</td>
+                  <td className="num">{money(s.monthlyAmount)}</td>
+                </tr>
+              ))}
+              {(household || []).map((m) => (
+                <tr key={m.id}>
+                  <td><strong>{m.fullName}</strong></td>
+                  <td>{m.relationship || 'Household member'}</td>
+                  <td className="num">{money(m.monthlyIncome)}</td>
+                </tr>
+              ))}
+              {!(data.incomeSources || []).length && !(household || []).length ? (
+                <tr>
+                  <td colSpan={3} className="field-hint">No individual income lines recorded.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
 
         {mt.notes.length ? (
@@ -253,6 +290,75 @@ export default function ApprovalDetail() {
             ))}
           </ul>
         ) : null}
+
+        {/* All supporting documents — assessor and supervisor must open them. */}
+        <div style={{ marginTop: '1.25rem' }}>
+          <h3 className="form-section-title" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+            Supporting documents
+          </h3>
+          <p className="field-hint" style={{ marginBottom: '0.75rem' }}>
+            Open ID, income proof and other uploads. Income-related files are marked below.
+          </p>
+          <div className="doc-list">
+            {(data.documents || []).length ? (data.documents || []).map((d) => {
+              const n = `${d.name || ''} ${d.type || ''} ${d.requirementGroup || ''}`.toLowerCase();
+              const isIncome = /income|grant|payslip|salary|bank|affidavit|proof of income|sass/.test(n)
+                || d.requirementGroup === 'INCOME'
+                || d.requirementGroup === 'PROOF_OF_INCOME';
+              return (
+                <div className="doc-row" key={d.id}>
+                  <div className="doc-row-info">
+                    <span className="doc-row-icon"><Icon name="file" size={16} /></span>
+                    <div>
+                      <div className="doc-row-title">
+                        {d.name}
+                        {isIncome ? <span className="badge badge-neutral" style={{ marginLeft: '0.4rem' }}>Income</span> : null}
+                      </div>
+                      <div className="doc-row-meta">
+                        <span className={`badge ${d.status === 'Uploaded' ? 'badge-approved' : 'badge-draft'}`}>
+                          {d.status || 'Missing'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="doc-row-actions">
+                    {d.status === 'Uploaded' ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(`/documents/file/${d.id}`, { responseType: 'blob' });
+                            const type = res.data?.type || '';
+                            if (type.includes('application/json')) {
+                              const text = await res.data.text();
+                              let message = 'Could not open that document.';
+                              try { message = JSON.parse(text)?.message || message; } catch { /* keep */ }
+                              toast.error(message);
+                              return;
+                            }
+                            const url = URL.createObjectURL(res.data);
+                            window.open(url, '_blank', 'noopener');
+                          } catch (err) {
+                            toast.error(err.response?.status === 403
+                              ? 'You do not have permission to open this document.'
+                              : 'Could not open that document.');
+                          }
+                        }}
+                      >
+                        <Icon name="file" size={14} /> View
+                      </button>
+                    ) : (
+                      <span className="field-hint">Not uploaded</span>
+                    )}
+                  </div>
+                </div>
+              );
+            }) : (
+              <p className="field-hint">No documents on this application.</p>
+            )}
+          </div>
+        </div>
 
         {/* The assessment officer records their working here. */}
         {atAssessment && position.canAct ? (

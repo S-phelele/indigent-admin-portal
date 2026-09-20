@@ -42,25 +42,90 @@ export default function StatisticsReport() {
   const [applied, setApplied] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setError('');
     api.get(`/export/statistics${applied ? `?${applied}` : ''}`)
-      .then((res) => setReport(res.data.data))
-      .catch((err) => setError(loadErrorMessage(err)))
-      .finally(() => setLoading(false));
+      .then((res) => {
+        if (cancelled) return;
+        const payload = res.data?.data;
+        if (!payload) {
+          setError('The statistics report returned no data.');
+          setReport(null);
+          return;
+        }
+        setReport(payload);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(loadErrorMessage(err));
+          setReport(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [applied]);
+
+  const downloadExcel = async () => {
+    try {
+      const res = await api.get(`/export/statistics.xls${applied ? `?${applied}` : ''}`, {
+        responseType: 'arraybuffer',
+      });
+      const buf = res.data;
+      const head = String.fromCharCode(...new Uint8Array(buf.slice(0, 20)));
+      if (head.trimStart().startsWith('{')) {
+        const text = new TextDecoder().decode(buf);
+        let message = 'Could not download the Excel file.';
+        try { message = JSON.parse(text)?.message || message; } catch { /* keep */ }
+        setError(message);
+        return;
+      }
+      const blob = new Blob([buf], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      if (blob.size < 64) {
+        setError('The Excel file came back empty. Clear filters and try again.');
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `indigent-statistics-${new Date().toISOString().slice(0, 10)}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      if (err.response?.status === 401) {
+        setError('Your session expired. Please sign in again, then download the Excel file.');
+        return;
+      }
+      setError(loadErrorMessage(err) || 'Could not download the Excel file. Please try again.');
+    }
+  };
 
   if (loading) {
     return <div className="print-page"><SkeletonPanel height={280} /></div>;
   }
 
-  if (error) {
+  // Keep a usable page when a filter fails on hosted deploys (auth / API URL).
+  if (error || !report) {
     return (
       <div className="print-page">
         <div className="alert alert-error" role="alert">
           <Icon name="alert-circle" size={16} />
-          <span>{error}</span>
+          <span>{error || 'The report could not be loaded.'}</span>
         </div>
-        <Link className="btn btn-outline btn-sm" to="/analytics">Back to analytics</Link>
+        <p className="field-hint" style={{ marginTop: '0.75rem' }}>
+          If this only happens after applying a filter on the hosted site, check that
+          <code> VITE_API_URL </code> points at your API and that you are still signed in.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => { setApplied(''); setError(''); }}>
+            Clear filters and retry
+          </button>
+          <Link className="btn btn-outline btn-sm" to="/analytics">Back to analytics</Link>
+        </div>
       </div>
     );
   }
@@ -75,11 +140,11 @@ export default function StatisticsReport() {
           <Icon name="arrow-left" size={15} /> Back to analytics
         </Link>
         <div className="row-actions">
-          {/* The workbook carries the same filters, so a downloaded file cannot
-              describe a different set of applications from the page it came from. */}
-          <a className="btn btn-outline btn-sm" href={`/api/export/statistics.xls${applied ? `?${applied}` : ''}`}>
+          {/* Authenticated download — a plain href omits the JWT and fails with
+              "Please sign in to continue" on hosted environments. */}
+          <button type="button" className="btn btn-outline btn-sm" onClick={downloadExcel}>
             <Icon name="download" size={15} /> Download for Excel
-          </a>
+          </button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => window.print()}>
             <Icon name="file" size={15} /> Print or save as PDF
           </button>
