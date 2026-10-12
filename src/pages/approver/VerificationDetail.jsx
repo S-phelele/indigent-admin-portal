@@ -22,6 +22,7 @@ import { friendlyError } from '../../utils/apiError';
  */
 
 const CHECK_SOURCES = [
+  { value: 'HOME_AFFAIRS', label: 'Home Affairs — identity' },
   { value: 'SASSA', label: 'SASSA — grants' },
   { value: 'SARS', label: 'SARS — tax and income' },
   { value: 'UIF', label: 'UIF — employment' },
@@ -110,6 +111,32 @@ export default function VerificationDetail() {
       await load();
     } catch (err) {
       toast.error(friendlyError(err, 'Could not record the check.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * Ask Home Affairs, through the provider, whether the ID number is real and
+   * belongs to the name on the application.
+   *
+   * Each run is billed, so a 409 (already checked) is put to the officer rather
+   * than retried silently — checking again is sometimes right, but only on
+   * purpose.
+   */
+  const runHomeAffairs = async (force = false) => {
+    if (force && !window.confirm('This application has already been checked. Checking again is charged again. Continue?')) return;
+    setBusy(true);
+    try {
+      const res = await api.post(`/verification/applications/${id}/checks/home-affairs`, force ? { force: true } : {});
+      toast.success(res.data.message || 'Home Affairs check complete.');
+      await load();
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setBusy(false);
+        return runHomeAffairs(true);
+      }
+      toast.error(friendlyError(err, 'Could not run the Home Affairs check.'));
     } finally {
       setBusy(false);
     }
@@ -425,6 +452,7 @@ export default function VerificationDetail() {
                     <div className="doc-row-title">{c.source.replace(/_/g, ' ')}</div>
                     <div className="doc-row-meta">
                       <span className={`badge ${OUTCOME_BADGE[c.outcome]}`}>{c.outcome}</span>
+                      {c.automated ? <span className="badge badge-neutral">Automated</span> : null}
                       {c.amountFound !== null ? <span>Found {zar(c.amountFound)}</span> : null}
                       {c.externalRef ? <span>Ref {c.externalRef}</span> : null}
                       <span>{c.officerName} · {dateZA(c.checkedAt)}</span>
@@ -443,7 +471,10 @@ export default function VerificationDetail() {
         )}
 
         <div className="form-actions">
-          <button type="button" className="btn btn-primary" onClick={() => setShowCheck(true)} disabled={!data.canVerify}>
+          <button type="button" className="btn btn-primary" onClick={() => runHomeAffairs(false)} disabled={!data.canVerify || busy}>
+            <Icon name="shield" size={15} /> Check ID with Home Affairs
+          </button>
+          <button type="button" className="btn" onClick={() => setShowCheck(true)} disabled={!data.canVerify}>
             <Icon name="plus" size={15} /> Record a check
           </button>
         </div>
