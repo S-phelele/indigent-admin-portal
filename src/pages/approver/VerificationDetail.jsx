@@ -23,6 +23,7 @@ import { friendlyError } from '../../utils/apiError';
 
 const CHECK_SOURCES = [
   { value: 'HOME_AFFAIRS', label: 'Home Affairs — identity' },
+  { value: 'BANK_ACCOUNT', label: 'Bank account' },
   { value: 'SASSA', label: 'SASSA — grants' },
   { value: 'SARS', label: 'SARS — tax and income' },
   { value: 'UIF', label: 'UIF — employment' },
@@ -79,6 +80,8 @@ export default function VerificationDetail() {
   const [checkForm, setCheckForm] = useState({ source: 'SASSA', outcome: 'PASS', externalRef: '', findings: '', amountFound: '' });
   const [visitForm, setVisitForm] = useState({ outcome: 'VERIFIED', findings: '', scheduledFor: '' });
   const [showCheck, setShowCheck] = useState(false);
+  const [showBank, setShowBank] = useState(false);
+  const [bankForm, setBankForm] = useState({ bankName: '', accountNumber: '', accountType: 'CURRENT' });
   const [showVisit, setShowVisit] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
@@ -117,28 +120,39 @@ export default function VerificationDetail() {
   };
 
   /**
-   * Ask Home Affairs, through the provider, whether the ID number is real and
-   * belongs to the name on the application.
+   * Run one of the automated checks: Home Affairs, bank account or deeds.
    *
    * Each run is billed, so a 409 (already checked) is put to the officer rather
    * than retried silently — checking again is sometimes right, but only on
-   * purpose.
+   * purpose. Declining the confirmation leaves everything as it was.
    */
-  const runHomeAffairs = async (force = false) => {
-    if (force && !window.confirm('This application has already been checked. Checking again is charged again. Continue?')) return;
+  const runAutomated = async (path, label, body = {}, force = false) => {
+    if (force && !window.confirm(`This application has already had a ${label} check. Checking again is charged again. Continue?`)) return false;
     setBusy(true);
     try {
-      const res = await api.post(`/verification/applications/${id}/checks/home-affairs`, force ? { force: true } : {});
-      toast.success(res.data.message || 'Home Affairs check complete.');
+      const res = await api.post(`/verification/applications/${id}/checks/${path}`, force ? { ...body, force: true } : body);
+      toast.success(res.data.message || `${label} check complete.`);
       await load();
+      return true;
     } catch (err) {
       if (err.response?.status === 409) {
         setBusy(false);
-        return runHomeAffairs(true);
+        return runAutomated(path, label, body, true);
       }
-      toast.error(friendlyError(err, 'Could not run the Home Affairs check.'));
+      toast.error(friendlyError(err, `Could not run the ${label} check.`));
+      return false;
     } finally {
       setBusy(false);
+    }
+  };
+
+  const submitBank = async (e) => {
+    e.preventDefault();
+    const ok = await runAutomated('bank-account', 'bank account', bankForm);
+    if (ok) {
+      setShowBank(false);
+      // The account number is not kept anywhere once the check has run, including here.
+      setBankForm({ bankName: '', accountNumber: '', accountType: 'CURRENT' });
     }
   };
 
@@ -471,8 +485,14 @@ export default function VerificationDetail() {
         )}
 
         <div className="form-actions">
-          <button type="button" className="btn btn-primary" onClick={() => runHomeAffairs(false)} disabled={!data.canVerify || busy}>
+          <button type="button" className="btn btn-primary" onClick={() => runAutomated('home-affairs', 'Home Affairs')} disabled={!data.canVerify || busy}>
             <Icon name="shield" size={15} /> Check ID with Home Affairs
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setShowBank(true)} disabled={!data.canVerify || busy}>
+            <Icon name="shield" size={15} /> Check bank account
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => runAutomated('property', 'deeds')} disabled={!data.canVerify || busy}>
+            <Icon name="shield" size={15} /> Check property (deeds)
           </button>
           <button type="button" className="btn" onClick={() => setShowCheck(true)} disabled={!data.canVerify}>
             <Icon name="plus" size={15} /> Record a check
@@ -616,6 +636,45 @@ export default function VerificationDetail() {
       </section>
 
       {/* ------------------------------------------------------------------ */}
+      <Modal open={showBank} title="Check a bank account" onClose={() => setShowBank(false)}>
+        <form onSubmit={submitBank} className="form-grid" autoComplete="off">
+          <p className="field-hint span-2">
+            Read the details off the bank statement the applicant uploaded. The bank confirms the account is open and
+            held by this ID number. <strong>The account number is not saved</strong> &mdash; only its last four digits
+            appear in the result.
+          </p>
+          <label className="form-group"><span>Bank</span>
+            <input
+              value={bankForm.bankName}
+              onChange={(e) => setBankForm((f) => ({ ...f, bankName: e.target.value }))}
+              placeholder="e.g. FNB, Capitec, Standard Bank"
+              required
+            />
+          </label>
+          <label className="form-group"><span>Account type</span>
+            <select value={bankForm.accountType} onChange={(e) => setBankForm((f) => ({ ...f, accountType: e.target.value }))}>
+              <option value="CURRENT">Cheque / current</option>
+              <option value="SAVINGS">Savings</option>
+              <option value="TRANSMISSION">Transmission</option>
+            </select>
+          </label>
+          <label className="form-group span-2"><span>Account number</span>
+            <input
+              inputMode="numeric"
+              autoComplete="off"
+              value={bankForm.accountNumber}
+              onChange={(e) => setBankForm((f) => ({ ...f, accountNumber: e.target.value }))}
+              placeholder="Digits only"
+              required
+            />
+          </label>
+          <div className="form-actions span-2">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowBank(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={busy}>Run check</button>
+          </div>
+        </form>
+      </Modal>
+
       <Modal open={showCheck} title="Record an external check" onClose={() => setShowCheck(false)}>
         <form onSubmit={addCheck} className="form-grid">
           <label className="form-group"><span>Source</span>
