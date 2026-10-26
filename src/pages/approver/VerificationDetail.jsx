@@ -449,8 +449,8 @@ export default function VerificationDetail() {
         <div className="panel-header">
           <h2>External checks</h2>
           <p className="field-hint">
-            Run the check on the relevant system, then record what it returned. The integrations themselves belong to
-            the municipality&rsquo;s agreements with each body.
+            Home Affairs, bank account and deeds checks run from here and are charged per check. For anything else
+            (SASSA, SARS, UIF, credit bureau), run it on that system and record what it returned.
           </p>
         </div>
 
