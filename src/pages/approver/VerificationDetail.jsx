@@ -81,7 +81,8 @@ export default function VerificationDetail() {
   const [visitForm, setVisitForm] = useState({ outcome: 'VERIFIED', findings: '', scheduledFor: '' });
   const [showCheck, setShowCheck] = useState(false);
   const [showBank, setShowBank] = useState(false);
-  const [bankForm, setBankForm] = useState({ bankName: '', accountNumber: '', accountType: 'CURRENT' });
+  const [bankForm, setBankForm] = useState({ bankName: '', accountNumber: '', accountType: 'UNKNOWN' });
+  const [bankList, setBankList] = useState([]);
   const [showVisit, setShowVisit] = useState(false);
   const [showRecommend, setShowRecommend] = useState(false);
   const [showRequest, setShowRequest] = useState(false);
@@ -146,13 +147,25 @@ export default function VerificationDetail() {
     }
   };
 
+  const openBank = async () => {
+    setShowBank(true);
+    if (bankList.length) return;
+    try {
+      const res = await api.get('/verification/banks');
+      setBankList(res.data.data || []);
+    } catch {
+      // The form still works without the list; the server will say if the bank is not recognised.
+      setBankList([]);
+    }
+  };
+
   const submitBank = async (e) => {
     e.preventDefault();
     const ok = await runAutomated('bank-account', 'bank account', bankForm);
     if (ok) {
       setShowBank(false);
       // The account number is not kept anywhere once the check has run, including here.
-      setBankForm({ bankName: '', accountNumber: '', accountType: 'CURRENT' });
+      setBankForm({ bankName: '', accountNumber: '', accountType: 'UNKNOWN' });
     }
   };
 
@@ -488,7 +501,7 @@ export default function VerificationDetail() {
           <button type="button" className="btn btn-primary" onClick={() => runAutomated('home-affairs', 'Home Affairs')} disabled={!data.canVerify || busy}>
             <Icon name="shield" size={15} /> Check ID with Home Affairs
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => setShowBank(true)} disabled={!data.canVerify || busy}>
+          <button type="button" className="btn btn-primary" onClick={openBank} disabled={!data.canVerify || busy}>
             <Icon name="shield" size={15} /> Check bank account
           </button>
           <button type="button" className="btn btn-primary" onClick={() => runAutomated('property', 'deeds')} disabled={!data.canVerify || busy}>
@@ -643,30 +656,39 @@ export default function VerificationDetail() {
             held by this ID number. <strong>The account number is not saved</strong> &mdash; only its last four digits
             appear in the result.
           </p>
-          <label className="form-group"><span>Bank</span>
-            <input
+          <label className="form-group span-2"><span>Bank</span>
+            <select
               value={bankForm.bankName}
               onChange={(e) => setBankForm((f) => ({ ...f, bankName: e.target.value }))}
-              placeholder="e.g. FNB, Capitec, Standard Bank"
               required
-            />
+            >
+              <option value="">Choose the bank…</option>
+              {bankList.map((b) => <option key={b.bankName} value={b.bankName}>{b.name}</option>)}
+            </select>
+            <small>
+              {bankList.find((b) => b.bankName === bankForm.bankName)
+                ? `Branch code ${bankList.find((b) => b.bankName === bankForm.bankName).bankCode} (the bank's universal code).`
+                : 'Postbank accounts cannot be checked this way. Record that check by hand.'}
+            </small>
           </label>
           <label className="form-group"><span>Account type</span>
             <select value={bankForm.accountType} onChange={(e) => setBankForm((f) => ({ ...f, accountType: e.target.value }))}>
+              <option value="UNKNOWN">Not sure</option>
               <option value="CURRENT">Cheque / current</option>
               <option value="SAVINGS">Savings</option>
               <option value="TRANSMISSION">Transmission</option>
             </select>
           </label>
-          <label className="form-group span-2"><span>Account number</span>
+          <label className="form-group"><span>Account number</span>
             <input
               inputMode="numeric"
               autoComplete="off"
               value={bankForm.accountNumber}
               onChange={(e) => setBankForm((f) => ({ ...f, accountNumber: e.target.value }))}
-              placeholder="Digits only"
+              placeholder="7 to 13 digits"
               required
             />
+            <small>Keep any leading zeros.</small>
           </label>
           <div className="form-actions span-2">
             <button type="button" className="btn btn-ghost" onClick={() => setShowBank(false)}>Cancel</button>
