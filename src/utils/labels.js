@@ -115,6 +115,8 @@ export const VISIT_OUTCOME = {
 };
 
 export const CHECK_SOURCE = {
+  HOME_AFFAIRS: 'Home Affairs',
+  BANK_ACCOUNT: 'Bank account',
   SARS: 'SARS',
   UIF: 'UIF',
   SASSA: 'SASSA',
