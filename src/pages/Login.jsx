@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/ui/Icon';
 import { useToast } from '../components/ui/Toast';
+import api from '../services/api';
 
 const POINTS = [
   'Review and decide indigent support applications',
@@ -54,6 +55,22 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  /**
+   * Whether staff may sign in with their Windows account.
+   *
+   * Asked of the server rather than assumed, so the same build works before and
+   * after the municipality switches it on. If the question fails the form simply
+   * stays as it was: signing in must never depend on this call.
+   */
+  const [directory, setDirectory] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    api.get('/auth/sign-in-options')
+      .then((res) => { if (!cancelled) setDirectory(Boolean(res.data?.data?.directory)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   /**
    * Read once, on mount, and cleared immediately.
@@ -112,7 +129,7 @@ export default function Login() {
       <main className="login-form-wrap">
         <div className="login-card">
           <h1>Administrator sign in</h1>
-          <p>Use the credentials issued by your municipality.</p>
+          <p>{directory ? 'Use your municipal Windows account — the same username and password you use at work.' : 'Use the credentials issued by your municipality.'}</p>
 
           {/* Hidden once they have tried again, so the older message does not sit
               above a fresh error and confuse which one is current. */}
@@ -132,14 +149,16 @@ export default function Login() {
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="form-group">
-              <label htmlFor="email">Email address</label>
+              <label htmlFor="email">{directory ? 'Windows username or email' : 'Email address'}</label>
               <input
                 id="email"
-                type="email"
+                type={directory ? 'text' : 'email'}
                 autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@municipality.gov.za"
+                placeholder={directory ? 'jsmith or name@municipality.gov.za' : 'name@municipality.gov.za'}
                 required
               />
             </div>
@@ -172,7 +191,9 @@ export default function Login() {
           </form>
 
           <p className="login-foot">
-            Trouble signing in? Contact your system administrator.
+            {directory
+              ? 'Your password is your Windows password. Trouble signing in? Contact your system administrator.'
+              : 'Trouble signing in? Contact your system administrator.'}
           </p>
         </div>
       </main>

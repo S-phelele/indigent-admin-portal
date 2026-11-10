@@ -6,6 +6,7 @@ import { useToast } from '../../components/ui/Toast';
 import LoadError, { loadErrorMessage } from '../../components/LoadError';
 import api from '../../services/api';
 import { friendlyError } from '../../utils/apiError';
+import { useAuth } from '../../context/AuthContext';
 import { label, ROLE } from '../../utils/labels';
 
 /**
@@ -24,6 +25,7 @@ const blank = { firstName: '', lastName: '', email: '', cellNumber: '', ward: ''
 
 export default function Staff() {
   const toast = useToast();
+  const { user: me } = useAuth();
   const [councillors, setCouncillors] = useState([]);
   /**
    * The roles this administrator may assign, as the server reports them.
@@ -50,6 +52,16 @@ export default function Staff() {
   const [editing, setEditing] = useState(null);
   const [confirm, setConfirm] = useState(null);
 
+  // --- Windows (Active Directory) accounts ---------------------------------
+  const [dir, setDir] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [query, setQuery] = useState('');
+  const [found, setFound] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [linking, setLinking] = useState(null);
+
   const load = () => {
     setLoading(true);
     api.get('/admin/staff', { params: { status: statusFilter, role: roleFilter || undefined } })
@@ -70,6 +82,77 @@ export default function Staff() {
   }, []);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const loadDirectory = () => {
+    api.get('/admin/staff/directory/status')
+      .then((res) => setDir(res.data.data))
+      .catch(() => setDir(null));
+  };
+  useEffect(() => { loadDirectory(); }, []);
+
+  const search = async (e) => {
+    e?.preventDefault();
+    setSearching(true);
+    setSearchError('');
+    try {
+      const res = await api.get('/admin/staff/directory/search', { params: { q: query } });
+      setFound(res.data.data);
+    } catch (err) {
+      setFound(null);
+      setSearchError(friendlyError(err, 'Could not search the directory.'));
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const importPerson = async (person) => {
+    setBusy(true);
+    try {
+      const res = await api.post('/admin/staff/directory/import', { username: person.username });
+      toast.success(res.data.message);
+      await search();
+      load();
+      loadDirectory();
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not add them.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const syncNow = async () => {
+    setSyncing(true);
+    try {
+      const res = await api.post('/admin/staff/directory/sync');
+      const d = res.data.data;
+      if (d.aborted) toast.error(d.aborted);
+      else if (d.deactivated.length || d.roleChanges.length) {
+        toast.success(`Checked ${d.checked}. ${d.deactivated.length} deactivated, ${d.roleChanges.length} role change(s).`);
+      } else toast.success(`Checked ${d.checked}. Everyone still has access.`);
+      load();
+      loadDirectory();
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not run the sync.'));
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const link = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api.post(`/admin/staff/${linking.councillor.id}/link-directory`, { username: linking.username });
+      toast.success(res.data.message);
+      setLinking(null);
+      load();
+      loadDirectory();
+    } catch (err) {
+      toast.error(friendlyError(err, 'Could not link that account.'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const create = async (e) => {
     e.preventDefault();
@@ -168,12 +251,54 @@ export default function Staff() {
       title="Municipal staff"
       description="Everyone who works the register: councillors, capture, verification, assessment and sign-off."
       actions={
-        <button type="button" className="btn btn-primary" onClick={() => { setForm(blank); setFormError(''); setShowForm(true); }}>
-          <Icon name="userPlus" size={16} /> Add a staff member
-        </button>
+        <>
+          {dir?.enabled ? (
+            <button type="button" className="btn btn-primary" onClick={() => { setQuery(''); setFound(null); setSearchError(''); setShowImport(true); }}>
+              <Icon name="userPlus" size={16} /> Add from Windows directory
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={dir?.enabled ? 'btn' : 'btn btn-primary'}
+            onClick={() => { setForm(blank); setFormError(''); setShowForm(true); }}
+          >
+            <Icon name="userPlus" size={16} /> {dir?.enabled ? 'Add a local account' : 'Add a staff member'}
+          </button>
+        </>
       }
     >
       <LoadError message={error} />
+
+      {dir?.enabled ? (
+        <section className="panel" aria-label="Windows sign-in">
+          <div className="panel-header">
+            <h2>Windows sign-in is on</h2>
+            <p className="field-hint">
+              Staff use their Windows account and their role follows their Active Directory group. {dir.accounts} account
+              {dir.accounts === 1 ? '' : 's'} {dir.accounts === 1 ? 'is' : 'are'} managed this way
+              {dir.lastSyncedAt ? `; last confirmed ${new Date(dir.lastSyncedAt).toLocaleString('en-ZA')}` : ''}.
+              {dir.syncEveryMinutes ? ` Access is re-checked every ${dir.syncEveryMinutes} minutes.` : ' Automatic re-checking is off.'}
+            </p>
+          </div>
+          {dir.problems?.length ? (
+            <div className="alert alert-error" role="alert">
+              <Icon name="alert-circle" size={16} />
+              <span>{dir.problems.join(' ')}</span>
+            </div>
+          ) : null}
+          {dir.provider === 'mock' ? (
+            <div className="alert alert-warning" role="status">
+              <Icon name="alert-circle" size={16} />
+              <span>This is the built-in test directory, not the municipality&rsquo;s. It must not be used for real staff.</span>
+            </div>
+          ) : null}
+          <div className="form-actions">
+            <button type="button" className="btn" onClick={syncNow} disabled={syncing}>
+              {syncing ? 'Checking…' : 'Check access now'}
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <div className="toolbar">
         <select
@@ -230,6 +355,11 @@ export default function Staff() {
                   <td>
                     <strong>{c.name}</strong>
                     <small className="muted">{c.email}</small>
+                    {c.authSource === 'DIRECTORY' ? (
+                      <small className="muted" title="Signs in with their Windows account; role set by Active Directory group">
+                        Windows account{c.directoryUsername ? ` · ${c.directoryUsername}` : ''}
+                      </small>
+                    ) : null}
                   </td>
                   <td>{c.roleLabel || label(ROLE, c.role)}</td>
                   <td>{c.ward || <span className="muted">Not set</span>}</td>
@@ -265,7 +395,14 @@ export default function Staff() {
                       here would be a button that always fails on click.
                     */}
                     {c.role === 'ADMIN' || c.role === 'SUPERUSER' ? (
-                      <span className="field-hint">Managed outside this screen</span>
+                      <div className="row-actions">
+                        <span className="field-hint">Managed outside this screen</span>
+                        {dir?.enabled && c.authSource !== 'DIRECTORY' && c.id !== me?.id ? (
+                          <button type="button" className="btn btn-sm" onClick={() => setLinking({ councillor: c, username: '' })}>
+                            <Icon name="key" size={14} /> Use Windows account
+                          </button>
+                        ) : null}
+                      </div>
                     ) : (
                     <div className="row-actions">
                       <button type="button" className="btn btn-sm" onClick={() => setEditing({ ...c })}>
@@ -278,13 +415,20 @@ export default function Staff() {
                           <Icon name="key" size={14} /> Unlock
                         </button>
                       ) : null}
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        onClick={() => setConfirm({ kind: 'reset', councillor: c })}
-                      >
-                        <Icon name="key" size={14} /> New password
-                      </button>
+                      {c.authSource === 'DIRECTORY' ? null : (
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => setConfirm({ kind: 'reset', councillor: c })}
+                        >
+                          <Icon name="key" size={14} /> New password
+                        </button>
+                      )}
+                      {dir?.enabled && c.authSource !== 'DIRECTORY' && c.id !== me?.id ? (
+                        <button type="button" className="btn btn-sm" onClick={() => setLinking({ councillor: c, username: '' })}>
+                          <Icon name="key" size={14} /> Use Windows account
+                        </button>
+                      ) : null}
                       {c.isActive ? (
                         <button
                           type="button"
@@ -381,10 +525,18 @@ export default function Staff() {
               offering it here would only produce a refusal on save.
             */}
             <label className="form-group span-2"><span>Role</span>
-              <select value={editing.role || ''} onChange={(e) => setEditing((c) => ({ ...c, role: e.target.value }))}>
+              <select
+                value={editing.role || ''}
+                onChange={(e) => setEditing((c) => ({ ...c, role: e.target.value }))}
+                disabled={editing.authSource === 'DIRECTORY'}
+              >
                 {roles.filter((r) => !r.privileged).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
-              <small>{roles.find((r) => r.value === editing.role)?.hint}</small>
+              <small>
+                {editing.authSource === 'DIRECTORY'
+                  ? 'Set by their Active Directory group. Move them between groups in AD to change it.'
+                  : roles.find((r) => r.value === editing.role)?.hint}
+              </small>
             </label>
             <label className="form-group"><span>First name</span>
               <input value={editing.firstName || ''} onChange={(e) => setEditing((c) => ({ ...c, firstName: e.target.value }))} />
@@ -409,6 +561,81 @@ export default function Staff() {
             <div className="form-actions span-2">
               <button type="button" className="btn btn-ghost" onClick={() => setEditing(null)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={busy}>Save changes</button>
+            </div>
+          </form>
+        ) : null}
+      </Modal>
+
+      <Modal open={showImport} title="Add from the Windows directory" onClose={() => setShowImport(false)} size="lg">
+        <form onSubmit={search} className="form-grid">
+          <label className="form-group span-2"><span>Search by name or username</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="e.g. Verifier, or jsmith"
+              autoFocus
+            />
+            <small>
+              Their role comes from their Active Directory group, so you do not choose one here. Anybody in no
+              access group is shown but cannot be added until they are placed in one.
+            </small>
+          </label>
+          <div className="form-actions span-2">
+            <button type="submit" className="btn btn-primary" disabled={searching || query.trim().length < 2}>
+              {searching ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+        </form>
+        {searchError ? <div className="alert alert-error" role="alert">{searchError}</div> : null}
+        {found && found.length === 0 ? <p className="field-hint">Nobody in the directory matches that.</p> : null}
+        {found && found.length > 0 ? (
+          <div className="table-card table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th>Username</th><th>Role</th><th aria-label="Add" /></tr></thead>
+              <tbody>
+                {found.map((p) => (
+                  <tr key={p.username}>
+                    <td><strong>{p.name}</strong><small className="muted">{p.email}</small></td>
+                    <td>{p.username}</td>
+                    <td>{p.roleLabel || <span className="muted">No access group</span>}</td>
+                    <td className="text-right">
+                      {p.alreadyImported
+                        ? <span className="badge badge-approved">Added</span>
+                        : (
+                          <button type="button" className="btn btn-sm btn-primary" disabled={!p.canImport || busy} onClick={() => importPerson(p)}>
+                            Add
+                          </button>
+                        )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal open={Boolean(linking)} title="Use their Windows account" onClose={() => setLinking(null)}>
+        {linking ? (
+          <form onSubmit={link} className="form-grid">
+            <p className="field-hint span-2">
+              <strong>{linking.councillor.name}</strong> keeps this account, and everything attached to it, but from now on
+              signs in with their Windows password and gets their role from their Active Directory group. Their current
+              password stops working. At least one administrator must keep a local password, so somebody can still sign in
+              if the directory is unreachable.
+            </p>
+            <label className="form-group span-2"><span>Their Windows username</span>
+              <input
+                value={linking.username}
+                onChange={(e) => setLinking((l) => ({ ...l, username: e.target.value }))}
+                placeholder="e.g. jsmith"
+                autoFocus
+                required
+              />
+            </label>
+            <div className="form-actions span-2">
+              <button type="button" className="btn btn-ghost" onClick={() => setLinking(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={busy}>Link account</button>
             </div>
           </form>
         ) : null}

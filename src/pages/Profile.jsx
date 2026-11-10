@@ -96,7 +96,18 @@ export default function Profile() {
         </div>
       ) : null}
 
-      <section className="panel">
+      {user?.authSource === 'DIRECTORY' ? (
+        <section className="panel">
+          <div className="panel-header">
+            <h2>Sign in and security</h2>
+          </div>
+          <p className="field-hint">
+            You sign in with your Windows account, so your password is managed there. To change it, use the
+            way you normally change your work password. Your role here follows your Active Directory group.
+          </p>
+        </section>
+      ) : (
+        <section className="panel">
         <div className="panel-header">
           <h2>Sign in and security</h2>
         </div>
@@ -142,6 +153,7 @@ export default function Profile() {
           </div>
         </form>
       </section>
+      )}
 
       <section className="panel">
         <div className="panel-header">
